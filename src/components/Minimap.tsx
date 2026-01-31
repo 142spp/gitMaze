@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useMemo } from 'react'
 import { useGameStore } from '../store/useGameStore'
 
 export const Minimap: React.FC = () => {
@@ -9,34 +9,36 @@ export const Minimap: React.FC = () => {
     const branchData = branches[currentBranch]
     const themeColor = branchData?.themeColor || '#2563eb'
 
-    // Fixed grid for minimap visual to match "System Map" look
-    const miniGridSize = 10
-    const cells = Array(miniGridSize * miniGridSize).fill(0)
+    // Generate a static grid for visual effect
+    const gridCells = useMemo(() => {
+        return Array(64).fill(0).map(() => Math.random() > 0.8)
+    }, [])
 
     return (
-        <div className="w-52 h-52 bg-white border border-gray-200 p-3 flex flex-col shadow-2xl rounded-sm font-mono overflow-hidden">
-            <div className="flex justify-between items-center mb-2.5 px-0.5">
-                <span className="text-[10px] font-black uppercase tracking-[0.2em]" style={{ color: themeColor }}>
-                    System Map
+        <div className="w-56 bg-white border border-slate-200 shadow-2xl p-4 flex flex-col font-mono rounded-sm">
+            <div className="flex justify-between items-center mb-4 px-1">
+                <span className="text-[10px] font-black tracking-[0.2em] hud-text" style={{ color: themeColor }}>
+                    SYSTEM_MAP
                 </span>
                 <div className="flex items-center gap-1.5 overflow-hidden">
                     <div className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
-                    <span className="text-[8px] font-black text-gray-300 tracking-widest">LIVE</span>
+                    <span className="text-[9px] font-black text-slate-300 hud-text">LIVE</span>
                 </div>
             </div>
 
-            <div className="flex-1 bg-gray-50 border border-gray-100 relative overflow-hidden rounded-sm group">
+            <div className="h-32 bg-slate-50 border border-slate-100 relative overflow-hidden rounded-sm group">
                 {/* Radar sweep effect */}
-                <div className="absolute inset-0 bg-gradient-to-b from-transparent via-gray-200/50 to-transparent w-full h-[25%] animate-scanline pointer-events-none z-10" />
+                <div className="absolute inset-0 bg-gradient-to-b from-transparent via-slate-200/50 to-transparent w-full h-[30%] animate-scanline pointer-events-none z-10" />
 
                 {/* Decorative Grid */}
-                <div className="grid grid-cols-10 gap-[1px] p-1 h-full opacity-60">
-                    {cells.map((_, i) => (
+                <div className="grid grid-cols-8 gap-[1px] p-1.5 h-full opacity-50">
+                    {gridCells.map((active, i) => (
                         <div
                             key={i}
                             className={`
-                        bg-white border-[0.5px] border-gray-100 rounded-[1px]
-                        ${Math.random() > 0.85 ? 'bg-gray-100' : ''}
+                        border-[0.5px] border-slate-100/50 rounded-[1px]
+                        ${active ? 'bg-slate-300' : 'bg-white'}
+                        ${i === 28 ? 'bg-sky-100 border-sky-200' : ''}
                     `}
                         />
                     ))}
@@ -44,35 +46,35 @@ export const Minimap: React.FC = () => {
 
                 {/* Player marker (Simplified position) */}
                 <div
-                    className="absolute w-3 h-3 rounded-[2px] shadow-lg z-20 flex items-center justify-center transition-all duration-300"
+                    className="absolute w-3.5 h-3.5 rounded-[2px] shadow-lg z-20 flex items-center justify-center transition-all duration-300"
                     style={{
                         backgroundColor: themeColor,
                         left: `${((playerPosition[0] + 5) / 10) * 100}%`,
                         top: `${((playerPosition[2] + 5) / 10) * 100}%`,
                         transform: 'translate(-50%, -50%)',
-                        boxShadow: `0 0 10px ${themeColor}66`
+                        boxShadow: `0 0 15px ${themeColor}44`
                     }}
                 >
-                    <div className="w-1 h-1 bg-white rounded-full animate-ping" />
+                    <div className="w-1.5 h-1.5 bg-white rounded-full animate-ping" />
                 </div>
             </div>
 
-            <div className="mt-3 grid grid-cols-2 gap-x-4 gap-y-1 text-[9px] font-black text-gray-400 tracking-tighter uppercase px-0.5">
-                <div className="flex justify-between">
-                    <span>X:</span>
-                    <span className="text-gray-900">{playerPosition[0].toFixed(0).padStart(3, '0')}</span>
+            <div className="mt-4 grid grid-cols-2 gap-x-6 gap-y-1.5 text-[9px] font-black text-slate-400 tracking-tighter hud-text px-1">
+                <div className="flex justify-between border-b border-slate-50 pb-0.5">
+                    <span>COORD_X:</span>
+                    <span className="text-slate-900">{playerPosition[0].toFixed(0).padStart(3, '0')}</span>
+                </div>
+                <div className="flex justify-between border-b border-slate-50 pb-0.5">
+                    <span>COORD_Y:</span>
+                    <span className="text-slate-900">{playerPosition[2].toFixed(0).padStart(3, '0')}</span>
                 </div>
                 <div className="flex justify-between">
-                    <span>Y:</span>
-                    <span className="text-gray-900">{playerPosition[2].toFixed(0).padStart(3, '0')}</span>
+                    <span>SECTOR:</span>
+                    <span className="text-slate-900">4B-RX</span>
                 </div>
                 <div className="flex justify-between">
-                    <span>SEC:</span>
-                    <span className="text-gray-900">4B-99</span>
-                </div>
-                <div className="flex justify-between">
-                    <span>CONN:</span>
-                    <span style={{ color: themeColor }}>STABLE</span>
+                    <span>STATUS:</span>
+                    <span style={{ color: themeColor }}>OPTIMAL</span>
                 </div>
             </div>
         </div>

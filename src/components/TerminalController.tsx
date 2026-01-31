@@ -10,7 +10,7 @@ export const TerminalController: React.FC = () => {
     const sendCommand = useGameStore((state) => state.sendCommand)
     const history = useGameStore((state) => state.history)
 
-    const PROMPT = '\x1b[1;36muser@git-maze\x1b[0m:\x1b[1;34m~/projects/core\x1b[0m$ '
+    const PROMPT = '\x1b[1;32muser@git-maze\x1b[0m:\x1b[1;34m~/projects/core\x1b[0m$ '
 
     useEffect(() => {
         if (!terminalRef.current) return
@@ -19,22 +19,23 @@ export const TerminalController: React.FC = () => {
             cursorBlink: true,
             theme: {
                 background: '#ffffff',
-                foreground: '#1f2937',
+                foreground: '#1e293b',
                 cursor: '#2563eb',
-                selectionBackground: '#e5e7eb',
-                black: '#1f2937',
+                selectionBackground: '#cbd5e1',
+                black: '#0f172a',
                 red: '#ef4444',
-                green: '#10b981',
+                green: '#22c55e',
                 yellow: '#f59e0b',
                 blue: '#3b82f6',
-                magenta: '#8b5cf6',
+                magenta: '#d946ef',
                 cyan: '#06b6d4',
-                white: '#f3f4f6',
+                white: '#f8fafc',
             },
             fontFamily: "'Fira Code', 'Courier New', monospace",
-            fontSize: 13,
+            fontSize: 12,
             allowProposedApi: true,
-            lineHeight: 1.2,
+            lineHeight: 1.4,
+            letterSpacing: 0.5,
         })
 
         const fitAddon = new FitAddon()
@@ -49,9 +50,9 @@ export const TerminalController: React.FC = () => {
             }
         }, 100)
 
-        term.writeln('\x1b[1;36muser@git-maze\x1b[0m:\x1b[1;34m~/projects/core\x1b[0m$ system --version')
-        term.writeln('Git Maze System [Version 0.1.0]')
-        term.writeln('(c) 2026 Git Maze Corporation. All rights reserved.\r\n')
+        // Mock OS header like in reference
+        term.writeln('Microsoft Windows [Version 10.0.19045.3693]')
+        term.writeln('(c) Microsoft Corporation. All rights reserved.\r\n')
 
         history.forEach(line => {
             if (line.startsWith('> ')) {
@@ -114,8 +115,8 @@ export const TerminalController: React.FC = () => {
     }, [history])
 
     return (
-        <div className="w-full h-full bg-white border-t border-gray-100 overflow-hidden">
-            <div ref={terminalRef} className="w-full h-full p-2" />
+        <div className="w-full h-full bg-white overflow-hidden p-2">
+            <div ref={terminalRef} className="w-full h-full" />
         </div>
     )
 }
