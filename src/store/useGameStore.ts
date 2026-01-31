@@ -37,7 +37,7 @@ export const useGameStore = create<GameState>((set, get) => ({
         'main': {
             nodes: INITIAL_NODES,
             commits: ['Initial commit'],
-            themeColor: '#00ff00'
+            themeColor: '#2563eb' // Blue for Main in Light Theme
         }
     },
     playerPosition: [0, 0, 0],
@@ -66,7 +66,7 @@ export const useGameStore = create<GameState>((set, get) => ({
                         [newBranch]: {
                             ...state.branches[state.currentBranch],
                             commits: [...state.branches[state.currentBranch].commits],
-                            themeColor: `hsl(${Math.random() * 360}, 70%, 50%)`
+                            themeColor: `hsl(${Math.random() * 360}, 65%, 45%)` // Slightly deeper colors for light mode
                         }
                     },
                     currentBranch: newBranch,

@@ -2,13 +2,23 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --bg-primary: #ffffff;
+  --bg-secondary: #f3f4f6;
+  --text-primary: #111827;
+  --text-secondary: #4b5563;
+  --border-color: #e5e7eb;
+  --accent-color: #2563eb;
+  /* Royal Blue accent */
+}
+
 body {
   margin: 0;
   padding: 0;
   overflow: hidden;
-  background-color: #000;
+  background-color: var(--bg-primary);
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
-  color: white;
+  color: var(--text-primary);
 }
 
 #root {
@@ -16,18 +26,27 @@ body {
   height: 100vh;
 }
 
-/* Xterm overrides */
-.xterm-viewport::-webkit-scrollbar {
+/* Scrollbar styles for light mode */
+::-webkit-scrollbar {
   width: 8px;
 }
 
-.xterm-viewport::-webkit-scrollbar-track {
-  background: transparent;
+::-webkit-scrollbar-track {
+  background: var(--bg-secondary);
 }
 
-.xterm-viewport::-webkit-scrollbar-thumb {
-  background: #333;
+::-webkit-scrollbar-thumb {
+  background: #d1d5db;
   border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
+}
+
+/* Xterm overrides for light mode */
+.xterm-viewport::-webkit-scrollbar-thumb {
+  background: #d1d5db;
 }
 
 @keyframes scanline {
