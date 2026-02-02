@@ -70,6 +70,26 @@ export class GitEngine {
         return Array.from(this.graph.branches.keys());
     }
 
+    private generateHash(): string {
+        return Math.random().toString(16).substring(2, 9);
+    }
+
+    /**
+     * Helper to find a commit ID by prefix or full match.
+     */
+    private resolveCommitId(target: string): string | undefined {
+        if (this.graph.commits.has(target)) return target;
+        // Search for prefix match
+        const lowerTarget = target.toLowerCase();
+        const matches = Array.from(this.graph.commits.keys()).filter(id => id.toLowerCase().startsWith(lowerTarget));
+
+        if (matches.length === 1) return matches[0];
+        if (matches.length > 1) {
+            return matches[0];
+        }
+        return undefined;
+    }
+
     /**
      * checkout(target): 차원 이동
      */
@@ -79,31 +99,30 @@ export class GitEngine {
         if (this.graph.branches.has(target)) {
             commitId = this.graph.branches.get(target);
             this.graph.HEAD = { type: 'branch', ref: target };
-        } else if (this.graph.commits.has(target)) {
-            commitId = target;
-            this.graph.HEAD = { type: 'detached', ref: target };
         } else {
-            throw new Error(`Dimension rift failed: Target '${target}' not found.`);
+            commitId = this.resolveCommitId(target);
+            if (commitId) {
+                this.graph.HEAD = { type: 'detached', ref: commitId };
+            }
         }
 
-        if (!commitId) throw new Error('Invalid state: Target has no commit ID.');
+        if (!commitId) {
+            throw new Error(`Dimension rift failed: Target '${target}' not found.`);
+        }
 
         return this.cloneState(this.graph.commits.get(commitId)!.snapshot);
     }
 
     /**
      * reset(target, type, currentWorldState): 그 시점으로 돌아가기
-     * @param target: commit hash or 'HEAD' (simplified)
-     * @param mode: 'soft' or 'hard'
-     * @param currentWorldState: The current state in the active scene
      */
     reset(target: string, mode: 'soft' | 'hard', currentWorldState: MazeState): MazeState {
         let targetCommitId: string | undefined;
 
         if (target.toUpperCase() === 'HEAD') {
             targetCommitId = this.getCurrentCommitId() || undefined;
-        } else if (this.graph.commits.has(target)) {
-            targetCommitId = target;
+        } else {
+            targetCommitId = this.resolveCommitId(target);
         }
 
         if (!targetCommitId) {
@@ -126,8 +145,7 @@ export class GitEngine {
             // Soft reset: Keep player position but reset the maze structure/flags
             newState.playerPosition = { ...currentWorldState.playerPosition };
         }
-        // Hard reset: playerPosition is already revert to the snapshot value
-
+        // Hard reset
         return newState;
     }
 
@@ -185,9 +203,5 @@ export class GitEngine {
 
     private cloneState(state: MazeState): MazeState {
         return JSON.parse(JSON.stringify(state));
-    }
-
-    private generateHash(): string {
-        return Math.random().toString(16).substring(2, 4);
     }
 }

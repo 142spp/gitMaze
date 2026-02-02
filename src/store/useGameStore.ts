@@ -6,6 +6,7 @@ interface GameState {
     git: GitEngine;
     currentMaze: MazeState;
     terminalHistory: string[];
+    gitVersion: number;
 
     // Actions
     sendCommand: (cmd: string) => void;
@@ -31,6 +32,7 @@ export const useGameStore = create<GameState>((set, get) => {
         git,
         currentMaze: git.getCurrentState(),
         terminalHistory: ['Welcome to gitMaze.', 'Type "help" for a list of commands.'],
+        gitVersion: 0, // Initial version
 
         sendCommand: (cmd: string) => {
             const parts = cmd.trim().toLowerCase().split(/\s+/);
@@ -46,6 +48,8 @@ export const useGameStore = create<GameState>((set, get) => {
                     const branchName = parts[2];
                     if (branchName) {
                         git.createBranch(branchName);
+                        // Increment version to trigger UI update
+                        set((state) => ({ gitVersion: state.gitVersion + 1 }));
                         get().addLog(`Branch '${branchName}' created.`);
                     } else {
                         const branches = git.getBranches();
@@ -69,23 +73,33 @@ export const useGameStore = create<GameState>((set, get) => {
                         get().addLog(`Created and switched to branch '${newBranch}'`);
                         // Auto-checkout for convenience
                         const newState = git.checkout(newBranch);
-                        set({ currentMaze: newState });
+                        // Update maze and increment version
+                        set((state) => ({
+                            currentMaze: newState,
+                            gitVersion: state.gitVersion + 1
+                        }));
                     } else {
                         const target = parts[2];
                         const newState = git.checkout(target);
-                        set({ currentMaze: newState });
+                        set((state) => ({
+                            currentMaze: newState,
+                            gitVersion: state.gitVersion + 1
+                        }));
                         get().addLog(`Switched to '${target}'`);
                     }
                 }
                 else if (parts[0] === 'git' && parts[1] === 'commit') {
                     const msg = cmd.match(/"([^"]+)"/)?.[1] || 'New commit';
                     git.commit(msg, get().currentMaze);
+                    set((state) => ({ gitVersion: state.gitVersion + 1 }));
                     get().addLog(`[${git.getGraph().HEAD.ref} commit] ${msg}`);
                 }
                 else if (parts[0] === 'git' && parts[1] === 'merge') {
                     const target = parts[2];
                     if (!target) throw new Error('Merge target branch required');
                     const result = git.merge(target);
+                    // Merge changes graph structure potentially, so update version
+                    set((state) => ({ gitVersion: state.gitVersion + 1 }));
                     get().addLog(result);
                 }
                 else if (parts[0] === 'git' && parts[1] === 'reset') {
@@ -93,7 +107,10 @@ export const useGameStore = create<GameState>((set, get) => {
                     const target = parts.find(p => !p.startsWith('--') && p !== 'git' && p !== 'reset') || 'HEAD';
 
                     const newState = git.reset(target, mode, get().currentMaze);
-                    set({ currentMaze: newState });
+                    set((state) => ({
+                        currentMaze: newState,
+                        gitVersion: state.gitVersion + 1
+                    }));
                     get().addLog(`Reset to ${target} (${mode})`);
                 }
                 else if (parts[0] === 'git' && parts[1] === 'push') {
@@ -105,7 +122,10 @@ export const useGameStore = create<GameState>((set, get) => {
                     const data = localStorage.getItem('git_maze_save');
                     if (!data) throw new Error('No dimension data found on server');
                     const newState = git.importGraph(data);
-                    set({ currentMaze: newState });
+                    set((state) => ({
+                        currentMaze: newState,
+                        gitVersion: state.gitVersion + 1
+                    }));
                     get().addLog('Dimension data restored from server (Cloud Load)');
                 }
                 else {
