@@ -140,7 +140,7 @@ export const CommitSidebar: React.FC = () => {
                         selectionOnDrag={false}
 
                         fitView={false}
-                        defaultViewport={{ x: 80, y: 30, zoom: 2 }}
+                        defaultViewport={{ x: 100, y: 30, zoom: 2 }}
                         proOptions={{ hideAttribution: true }}
                     >
 

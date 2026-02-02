@@ -15,7 +15,7 @@ export const CommitNode = memo(({ data }: CommitNodeProps) => {
     const nodeColor = '#334155'; // Dark Slate/Gray for nodes
 
     return (
-        <div className="relative flex flex-col items-center group pointer-events-none pb-2">
+        <div className="relative flex flex-col items-center group pointer-events-none">
             {/* Target Handle at the top of the node */}
             <Handle type="target" position={Position.Top} className="!opacity-0 !pointer-events-none" />
 
@@ -46,14 +46,14 @@ export const CommitNode = memo(({ data }: CommitNodeProps) => {
                 )}
             </div>
 
-            {/* Commit Hash - Nudged slightly closer to circle, margin bottom for edge gap */}
-            <div className="mt-1 flex justify-center whitespace-nowrap font-mono text-[6px] pointer-events-auto cursor-pointer select-none">
+            {/* Commit Hash - Centered below circle, with margin bottom to clear handle */}
+            <div className="mt-1 mb-0 flex justify-center whitespace-nowrap font-mono text-[8px] pointer-events-auto cursor-pointer select-none">
                 <span className={`font-black tracking-tighter ${data.isHead ? 'text-slate-900' : 'text-slate-600'}`}>
                     {data.id.toUpperCase()}
                 </span>
             </div>
 
-            {/* Source Handle at the bottom of the node block (ensures gap from hash) */}
+            {/* Source Handle at the bottom of the node block */}
             <Handle type="source" position={Position.Bottom} className="!opacity-0 !pointer-events-none" />
         </div>
     );

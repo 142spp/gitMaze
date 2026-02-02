@@ -10,7 +10,7 @@ export const TerminalController: React.FC = () => {
     const sendCommand = useGameStore((state) => state.sendCommand)
     const terminalHistory = useGameStore((state) => state.terminalHistory)
 
-    const PROMPT = '\x1b[1;38;2;139;94;60muser@git-maze\x1b[0m:\x1b[1;38;2;160;120;90m~/projects/core\x1b[0m$ '
+    const PROMPT = '\x1b[1;38;2;139;94;60muser@git-maze\x1b[0m:\x1b[1;38;2;160;120;90m~\x1b[0m$ '
 
     useEffect(() => {
         if (!terminalRef.current) return

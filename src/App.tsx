@@ -23,7 +23,7 @@ const App: React.FC = () => {
             <Book>
                 <div className="w-full h-full flex bg-[#fdf3e7]">
                     {/* Unified Sidebar (Integrated into the one sheet) */}
-                    <div className="w-[240px] h-full relative z-20 shrink-0 border-r border-[#8b5e3c]/30 bg-[#ecdab9]">
+                    <div className="w-[280px] h-full relative z-20 shrink-0 border-r border-[#8b5e3c]/30 bg-[#ecdab9]">
                         <div className="relative z-10 p-5 h-full flex flex-col pt-10">
                             <div className="bg-[#8b5e3c]/10 rounded-full py-2 px-4 shadow-inner border border-[#8b5e3c]/5 mb-8 w-fit mx-auto">
                                 <span className="text-[10px] font-black text-[#8b5e3c]/60 tracking-[0.2em] flex items-center gap-2">
