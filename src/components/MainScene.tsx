@@ -6,65 +6,71 @@ import { MazeManager } from './MazeManager'
 import { useGameStore } from '../store/useGameStore'
 
 export const MainScene: React.FC = () => {
-    const currentBranch = useGameStore((state) => state.currentBranch)
-    const branches = useGameStore((state) => state.branches)
-    const playerPosition = useGameStore((state) => state.playerPosition)
-    const themeColor = branches[currentBranch]?.themeColor || '#2563eb'
+    const currentMaze = useGameStore((state) => state.currentMaze)
+    const playerPosition = currentMaze.playerPosition
+    const themeColor = '#2563eb'
 
     return (
-        <div className="w-full h-full bg-[#fcfdfe] relative">
-            <Canvas shadows>
-                <PerspectiveCamera makeDefault position={[6, 15, 15]} fov={40} />
-                <OrbitControls makeDefault enableDamping dampingFactor={0.05} />
+        <div className="w-full h-full flex items-center justify-center p-1">
+            <div className="relative transform rotate-1 hover:rotate-0 transition-transform duration-300 w-full max-w-[680px]">
+                {/* Polaroid Frame */}
+                <div className="bg-white p-4 pb-16 shadow-[0_10px_30px_rgba(0,0,0,0.15)] rounded-sm border border-gray-100 relative">
 
-                <ambientLight intensity={0.7} />
-                <directionalLight
-                    position={[10, 20, 10]}
-                    intensity={1.0}
-                    castShadow
-                    shadow-mapSize={[2048, 2048]}
-                />
-                <pointLight position={[-10, 10, -10]} intensity={0.4} color={themeColor} />
+                    {/* Blue Pins (Decorative) */}
+                    <div className="absolute -top-3 left-1/2 -translate-x-12 w-4 h-4 rounded-full bg-blue-500 shadow-sm border-2 border-white/50 z-20" />
+                    <div className="absolute -top-3 left-1/2 translate-x-12 w-4 h-4 rounded-full bg-blue-500 shadow-sm border-2 border-white/50 z-20" />
 
-                <Suspense fallback={null}>
-                    <Player />
-                    <MazeManager />
-                    <Grid
-                        infiniteGrid
-                        fadeDistance={70}
-                        fadeStrength={2.5}
-                        sectionColor="#cbd5e1"
-                        cellColor="#f1f5f9"
-                        sectionThickness={1.2}
-                        cellSize={1}
-                        sectionSize={5}
-                    />
-                </Suspense>
+                    {/* Inner 3D Content (Flipped aspect ratio to be shorter) */}
+                    <div className="w-full aspect-[3/2] bg-[#f0ebe6] rounded overflow-hidden relative border border-gray-200">
+                        <Canvas shadows>
+                            <PerspectiveCamera makeDefault position={[6, 15, 15]} fov={40} />
+                            <OrbitControls makeDefault enableDamping dampingFactor={0.05} />
 
-                <fog attach="fog" args={['#fcfdfe', 15, 60]} />
-            </Canvas>
+                            <ambientLight intensity={0.7} />
+                            <directionalLight
+                                position={[10, 20, 10]}
+                                intensity={1.0}
+                                castShadow
+                                shadow-mapSize={[2048, 2048]}
+                            />
+                            <pointLight position={[-10, 10, -10]} intensity={0.4} color={themeColor} />
 
-            {/* HUD Info: Top Left (Matches Reference) */}
-            <div className="absolute top-8 left-8 pointer-events-none select-none z-10 font-mono">
-                <div className="flex flex-col gap-1.5 bg-white/40 backdrop-blur-[2px] p-2 rounded-sm border-l-2" style={{ borderColor: themeColor }}>
-                    <span
-                        className="text-[14px] font-black uppercase tracking-[0.2em] hud-text"
-                        style={{ color: themeColor }}
-                    >
-                        POS: [{playerPosition[0].toFixed(0)}, {playerPosition[2].toFixed(0)}]
-                    </span>
-                    <span className="text-[10px] text-slate-400 font-black uppercase tracking-[0.2em] hud-text">
-                        USE ARROW KEYS TO MOVE
-                    </span>
+                            <Suspense fallback={null}>
+                                <Player />
+                                <MazeManager />
+                                <Grid
+                                    infiniteGrid
+                                    fadeDistance={70}
+                                    fadeStrength={2.5}
+                                    sectionColor="#cbd5e1"
+                                    cellColor="#f1f5f9"
+                                    sectionThickness={1.2}
+                                    cellSize={1}
+                                    sectionSize={5}
+                                />
+                            </Suspense>
+
+                            <fog attach="fog" args={['#f0ebe6', 15, 60]} />
+                        </Canvas>
+
+                        {/* Reflection highlight */}
+                        <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/10 to-transparent pointer-events-none" />
+                    </div>
+
+                    {/* Polaroid Footer Text */}
+                    <div className="absolute bottom-4 left-0 right-0 text-center">
+                        <span className="font-mono text-[10px] text-gray-400 font-bold uppercase tracking-[0.4em] opacity-40">
+                            captured_state: {playerPosition.x.toFixed(0)},{playerPosition.y.toFixed(0)}
+                        </span>
+                    </div>
                 </div>
-            </div>
 
-            {/* HUD Info: Bottom Left (Matches Reference) */}
-            <div className="absolute bottom-8 left-8 pointer-events-none select-none z-10 font-mono">
-                <div className="text-[9px] text-slate-300 flex flex-col gap-1 font-black uppercase tracking-[0.2em] hud-text">
-                    <span>RENDER_ENGINE: react_three_fiber</span>
-                    <span>FPS: 60</span>
-                    <span>LATENCY: 12ms</span>
+                {/* HUD Overlay (Matches Reference) */}
+                <div className="absolute -top-4 -left-4 pointer-events-none select-none z-30 font-mono">
+                    <div className="bg-white/90 backdrop-blur-[2px] p-2.5 rounded-lg shadow-sm border border-gray-100 rotate-[-4deg]">
+                        <p className="text-[10px] font-black text-gray-400 mb-0.5">POS ({playerPosition.x.toFixed(0)},{playerPosition.y.toFixed(0)})</p>
+                        <p className="text-[11px] font-black text-gray-600">ARROW KEYS TO MOVE</p>
+                    </div>
                 </div>
             </div>
         </div>

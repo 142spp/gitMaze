@@ -6,18 +6,18 @@ import { Edges } from '@react-three/drei'
 
 export const Player: React.FC = () => {
     const groupRef = useRef<Group>(null)
-    const playerPosition = useGameStore((state) => state.playerPosition)
-    const currentBranch = useGameStore((state) => state.currentBranch)
-    const branches = useGameStore((state) => state.branches)
-    const themeColor = branches[currentBranch]?.themeColor || '#2563eb'
+    const currentMaze = useGameStore((state) => state.currentMaze)
+    const playerPosition = currentMaze.playerPosition
+    const git = useGameStore((state) => state.git)
+    const themeColor = '#2563eb'
 
     useFrame((state, delta) => {
         if (groupRef.current) {
             // Sync position with smoothing
             groupRef.current.position.lerp({
-                x: playerPosition[0],
+                x: playerPosition.x,
                 y: 0.5 + Math.sin(state.clock.elapsedTime * 2.5) * 0.15, // Float
-                z: playerPosition[2]
+                z: playerPosition.y
             }, 0.1)
 
             groupRef.current.rotation.y += delta * 1.5

@@ -1,37 +1,48 @@
 import React, { useMemo, useRef, useEffect } from 'react'
 import { useFrame } from '@react-three/fiber'
-import { InstancedMesh, Object3D, Color, MeshStandardMaterial } from 'three'
+import { InstancedMesh, Object3D, Color } from 'three'
 import { useGameStore } from '../store/useGameStore'
-import { Edges } from '@react-three/drei'
+import { TileType } from '../lib/git/types'
 
 const tempObject = new Object3D()
 const tempColor = new Color()
 
 export const MazeManager: React.FC = () => {
-    const currentBranch = useGameStore((state) => state.currentBranch)
-    const branches = useGameStore((state) => state.branches)
+    const currentMaze = useGameStore((state) => state.currentMaze)
+    const grid = currentMaze.grid
 
     const wallRef = useRef<InstancedMesh>(null)
     const floorRef = useRef<InstancedMesh>(null)
     const gemRef = useRef<InstancedMesh>(null)
 
-    const branchData = branches[currentBranch]
-    const nodes = branchData?.nodes || []
-    const themeColor = branchData?.themeColor || '#2563eb'
+    const themeColor = '#2563eb' // Default theme color for now
 
     const { walls, floors, gems } = useMemo(() => {
-        const w = nodes.filter(n => n.type === 'wall')
-        const f = nodes.filter(n => n.type === 'floor')
-        // Mocking some gems for visual interest
-        const g = f.filter((_, i) => i % 15 === 0)
+        const w: { position: [number, number, number] }[] = []
+        const f: { position: [number, number, number] }[] = []
+        const g: { position: [number, number, number] }[] = []
+
+        grid.forEach((row, z) => {
+            row.forEach((tile, x) => {
+                if (tile === 'wall') {
+                    w.push({ position: [x, 0, z] })
+                } else {
+                    f.push({ position: [x, 0, z] })
+                    if ((x + z) % 15 === 0) {
+                        g.push({ position: [x, 0.5, z] })
+                    }
+                }
+            })
+        })
+
         return { walls: w, floors: f, gems: g }
-    }, [nodes])
+    }, [grid])
 
     useEffect(() => {
         // Update Floors
         if (floorRef.current) {
             floors.forEach((node, i) => {
-                tempObject.position.set(node.position[0], 0, node.position[2])
+                tempObject.position.set(node.position[0], -0.25, node.position[2])
                 tempObject.scale.set(1, 1, 1)
                 tempObject.updateMatrix()
                 floorRef.current!.setMatrixAt(i, tempObject.matrix)
@@ -46,8 +57,8 @@ export const MazeManager: React.FC = () => {
         // Update Walls
         if (wallRef.current) {
             walls.forEach((node, i) => {
-                tempObject.position.set(node.position[0], 0.7, node.position[2])
-                tempObject.scale.set(0.9, 1.4, 0.9)
+                tempObject.position.set(node.position[0], 0.5, node.position[2])
+                tempObject.scale.set(0.9, 1.5, 0.9)
                 tempObject.updateMatrix()
                 wallRef.current!.setMatrixAt(i, tempObject.matrix)
 
@@ -91,7 +102,7 @@ export const MazeManager: React.FC = () => {
         <group>
             {/* Floors: Subtle grid tiles */}
             <instancedMesh ref={floorRef} args={[undefined, undefined, floors.length]} receiveShadow>
-                <boxGeometry args={[0.98, 0.05, 0.98]} />
+                <boxGeometry args={[0.98, 0.5, 0.98]} />
                 <meshStandardMaterial metalness={0.1} roughness={0.8} />
             </instancedMesh>
 
@@ -109,3 +120,4 @@ export const MazeManager: React.FC = () => {
         </group>
     )
 }
+

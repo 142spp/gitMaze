@@ -3,68 +3,76 @@ import { MainScene } from './components/MainScene'
 import { TerminalController } from './components/TerminalController'
 import { CommitSidebar } from './components/CommitSidebar'
 import { Minimap } from './components/Minimap'
-import { useGameStore } from './store/useGameStore'
+import { Book } from './components/ui/Book'
+import { GitBranch } from 'lucide-react';
+
 
 const App: React.FC = () => {
-    const currentBranch = useGameStore((state) => state.currentBranch)
-    const branches = useGameStore((state) => state.branches)
-    const themeColor = branches[currentBranch]?.themeColor || '#2563eb'
-
     return (
-        <div className="w-screen h-screen bg-slate-100 flex items-center justify-center p-6 overflow-hidden">
-            {/* 4:3 Container with overall border */}
-            <div className="relative w-full max-w-[1280px] h-full max-h-[960px] aspect-[4/3] bg-white flex text-slate-800 font-mono select-none overflow-hidden shadow-2xl rounded-lg border-2 border-slate-300">
+        <div
+            className="min-h-screen w-full flex items-center justify-center p-2 md:p-4 overflow-hidden relative"
+            style={{
+                backgroundImage: `url('https://images.unsplash.com/photo-1546484396-fb3fc6f95f98?q=80&w=2070&auto=format&fit=crop')`,
+                backgroundSize: 'cover',
+                backgroundPosition: 'center',
+            }}
+        >
+            {/* Blur overlay for the background to make it look soft/dreamy */}
+            <div className="absolute inset-0 backdrop-blur-[2px] bg-amber-100/20" />
 
-                {/* Left Sidebar: Git Graph (Node Graph) */}
-                <aside className="w-[300px] h-full border-r-2 border-slate-200 flex flex-col bg-slate-50/10 z-20 overflow-hidden">
-                    <div className="h-10 border-b border-slate-100 flex items-center px-5 justify-between bg-white">
-                        <div className="flex items-center gap-1.5">
-                            <div className="w-2.5 h-2.5 rounded-full bg-red-400"></div>
-                            <div className="w-2.5 h-2.5 rounded-full bg-yellow-400"></div>
-                            <div className="w-2.5 h-2.5 rounded-full bg-green-400"></div>
+            <Book>
+                <div className="w-full h-full flex bg-[#fdf3e7]">
+                    {/* Unified Sidebar (Integrated into the one sheet) */}
+                    <div className="w-[240px] h-full relative z-20 shrink-0 border-r border-[#8b5e3c]/30 bg-[#ecdab9]">
+                        <div className="relative z-10 p-5 h-full flex flex-col pt-10">
+                            <div className="bg-[#8b5e3c]/10 rounded-full py-2 px-4 shadow-inner border border-[#8b5e3c]/5 mb-8 w-fit mx-auto">
+                                <span className="text-[10px] font-black text-[#8b5e3c]/60 tracking-[0.2em] flex items-center gap-2">
+                                    <GitBranch className="w-4 h-4 text-[#8b5e3c]" />
+                                    GIT_GRAPH
+                                </span>
+                            </div>
+                            <div className="flex-1 overflow-hidden opacity-90 transition-opacity">
+                                <CommitSidebar />
+                            </div>
                         </div>
-                        <span className="text-[9px] text-slate-400 font-black tracking-[0.2em] hud-text">GIT_GRAPH</span>
                     </div>
 
-                    <div className="flex-1 overflow-hidden">
-                        <CommitSidebar />
-                    </div>
-
-                    <div className="p-3 border-t border-slate-200 text-[9px] text-slate-400 flex justify-between bg-white">
-                        <span className="hud-text">origin/{currentBranch}</span>
-                        <span className="font-black hud-text" style={{ color: themeColor }}>SYNCED</span>
-                    </div>
-                </aside>
-
-                {/* Right Column */}
-                <div className="flex-1 flex flex-col h-full relative">
                     {/* Main Content Area */}
-                    <main className="flex-1 relative bg-[#fcfdfe] overflow-hidden flex flex-col">
-                        {/* Main 3D Viewport - Takes flex-7 area */}
-                        <div className="flex-[7] min-h-0 relative overflow-hidden bg-white shadow-inner">
+                    <div className="flex-1 relative p-6 flex flex-col min-w-0">
+                        {/* Background Decorative Doodles */}
+                        <div className="absolute top-1/4 right-1/4 opacity-10 rotate-12 pointer-events-none">
+                            <svg width="100" height="100" viewBox="0 0 100 100" className="text-amber-900">
+                                <path d="M10,50 Q25,25 50,50 T90,50" stroke="currentColor" fill="none" strokeWidth="2" />
+                                <path d="M10,60 Q25,35 50,60 T90,60" stroke="currentColor" fill="none" strokeWidth="2" />
+                            </svg>
+                        </div>
+
+                        {/* Top: 3D Scene Viewport */}
+                        <div className="flex-1 relative min-h-0 mb-6 group flex items-center justify-center">
                             <MainScene />
                         </div>
 
-                        {/* Bottom Info Panel (Minimap + Terminal) - Takes flex-3 area */}
-                        <div className="flex-[3] min-h-0 flex bg-white border-t-2 border-slate-200 overflow-hidden">
-                            {/* Bottom Left: Minimap (1/4 of bottom) */}
-                            <div className="flex-[1] border-r-2 border-slate-200 bg-slate-50/10">
+                        {/* Bottom: Minimap + Terminal (Side-by-side for 4:3) */}
+                        <div className="h-[240px] flex gap-4 relative z-40">
+                            <div className="w-[220px] shrink-0">
                                 <Minimap />
                             </div>
-
-                            {/* Bottom Right: Terminal (3/4 of bottom) */}
-                            <div className="flex-[3] relative overflow-hidden">
+                            <div className="flex-1">
                                 <TerminalController />
-
-                                {/* Terminal Label */}
-                                <div className="absolute top-0 right-8 h-6 flex items-center gap-2 bg-white px-4 border-x border-b border-slate-200 text-[8px] font-black uppercase tracking-[0.2em] z-10 rounded-b-sm shadow-sm hud-text">
-                                    <div className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ backgroundColor: themeColor }} />
-                                    <span className="text-slate-300">SYSTEM_READY</span>
-                                </div>
                             </div>
                         </div>
-                    </main>
+                    </div>
                 </div>
+            </Book>
+
+            {/* Decorative Floating UI Buttons (Themed) */}
+            <div className="absolute bottom-10 left-10 flex gap-4 z-50">
+                <button className="w-12 h-12 bg-[#fdfbf7] rounded-full shadow-xl flex items-center justify-center text-amber-700 hover:scale-110 active:scale-95 transition-all border border-amber-100/50">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="5" /><path d="M12 1v2" /><path d="M12 21v2" /><path d="M4.22 4.22l1.42 1.42" /><path d="M18.36 18.36l1.42 1.42" /><path d="M1 12h2" /><path d="M21 12h2" /><path d="M4.22 19.78l1.42-1.42" /><path d="M18.36 5.64l1.42-1.42" /></svg>
+                </button>
+                <button className="w-12 h-12 bg-[#fdfbf7] rounded-full shadow-xl flex items-center justify-center text-amber-700/60 hover:scale-110 active:scale-95 transition-all border border-amber-100/50">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" /></svg>
+                </button>
             </div>
         </div>
     )

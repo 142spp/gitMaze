@@ -1,76 +1,157 @@
-import React from 'react'
-import { useGameStore } from '../store/useGameStore'
-import { GitCommit, GitBranch } from 'lucide-react'
+import React, { useMemo, useCallback } from 'react';
+import {
+    ReactFlow,
+    Background,
+    ReactFlowProvider,
+    BaseEdge,
+    EdgeProps,
+    getBezierPath,
+    Edge,
+    Node
+} from '@xyflow/react';
+import '@xyflow/react/dist/style.css';
+import { useGameStore } from '../store/useGameStore';
+import { GitBranch } from 'lucide-react';
+import { CommitNode } from './CommitNode';
+import { calculateLayout } from '../lib/git/graphLayout';
 
-export const CommitSidebar: React.FC = () => {
-    const currentBranch = useGameStore((state) => state.currentBranch)
-    const branches = useGameStore((state) => state.branches)
+const nodeTypes = {
+    commitNode: CommitNode,
+};
 
-    const branchData = branches[currentBranch]
-    const commits = branchData?.commits || []
-    const themeColor = branchData?.themeColor || '#2563eb'
+// Vibrant color palette for branches
+const BRANCH_COLORS = ["#f97316", "#eab308", "#22c55e", "#a855f7", "#ef4444", "#06b6d4"];
+
+const CommitEdge = ({
+    id,
+    sourceX,
+    sourceY,
+    targetX,
+    targetY,
+    sourcePosition,
+    targetPosition,
+    style = {},
+    markerEnd,
+    data
+}: EdgeProps) => {
+    const [edgePath] = getBezierPath({
+        sourceX,
+        sourceY,
+        sourcePosition,
+        targetX,
+        targetY,
+        targetPosition,
+    });
+
+    const edgeColor = (data as any)?.color || '#e2e8f0';
 
     return (
-        <div className="h-full bg-white flex flex-col font-mono text-[11px] overflow-y-auto scrollbar-hide p-6">
-            <div className="flex items-center gap-2 mb-8 text-slate-400 hud-text">
-                <GitBranch className="w-4 h-4" style={{ color: themeColor }} />
-                <span className="font-black uppercase tracking-[0.2em] text-[10px]">Git Graph</span>
+        <BaseEdge
+            id={id}
+            path={edgePath}
+            style={{ ...style, stroke: edgeColor, strokeWidth: 2, opacity: 0.8 }}
+            markerEnd={markerEnd}
+        />
+    );
+};
+
+const edgeTypes = {
+    commitEdge: CommitEdge,
+};
+
+export const CommitSidebar: React.FC = () => {
+    const git = useGameStore((state) => state.git);
+    const setMaze = useGameStore((state) => (newState: any) => useGameStore.setState({ currentMaze: newState }));
+    const addLog = useGameStore((state) => state.addLog);
+
+    const graph = git.getGraph();
+    const headCommitId = git.getCurrentCommitId();
+
+    const { nodes, edges } = useMemo(() => {
+        const layout = calculateLayout(graph);
+        const commitToLane = new Map(layout.map(l => [l.id, l.lane]));
+
+        const rfNodes: Node[] = layout.map(node => {
+            const branchName = Array.from(graph.branches.entries())
+                .find(([_, cid]) => cid === node.id)?.[0];
+
+            return {
+                id: node.id,
+                type: 'commitNode',
+                position: { x: node.x, y: node.y },
+                draggable: false,
+                selectable: false,
+                data: {
+                    id: node.id,
+                    isHead: node.id === headCommitId,
+                    branch: branchName,
+                    themeColor: BRANCH_COLORS[node.lane % BRANCH_COLORS.length]
+                },
+            };
+        });
+
+        const rfEdges: Edge[] = [];
+        graph.commits.forEach(commit => {
+            commit.parents.forEach(parentId => {
+                const lane = commitToLane.get(commit.id) ?? 0;
+                rfEdges.push({
+                    id: `${parentId}-${commit.id}`,
+                    source: parentId,
+                    target: commit.id,
+                    type: 'commitEdge',
+                    focusable: false,
+                    data: {
+                        color: BRANCH_COLORS[lane % BRANCH_COLORS.length]
+                    }
+                });
+            });
+        });
+
+        return { nodes: rfNodes, edges: rfEdges };
+    }, [graph, headCommitId]);
+
+    const onNodeClick = useCallback((_: any, node: any) => {
+        try {
+            const newState = git.checkout(node.id);
+            setMaze(newState);
+            addLog(`Dimension Shift: ${node.id}`);
+        } catch (error: any) {
+            addLog(`Shift failed: ${error.message}`);
+        }
+    }, [git, setMaze, addLog]);
+
+    return (
+        <div className="h-full bg-transparent flex flex-col font-mono text-[11px]">
+            <div className="flex-1 w-full ">
+                <ReactFlowProvider>
+                    <ReactFlow
+                        nodes={nodes}
+                        edges={edges}
+                        nodeTypes={nodeTypes}
+                        edgeTypes={edgeTypes}
+                        onNodeClick={onNodeClick}
+                        nodesDraggable={false}
+                        nodesConnectable={false}
+                        elementsSelectable={false}
+                        panOnDrag={false}
+                        zoomOnScroll={false}
+                        zoomOnPinch={false}
+                        zoomOnDoubleClick={false}
+                        selectionOnDrag={false}
+
+                        fitView={false}
+                        defaultViewport={{ x: 80, y: 30, zoom: 2 }}
+                        proOptions={{ hideAttribution: true }}
+                    >
+
+                        <Background color="#e6d5c3" gap={20} size={0.5} />
+                    </ReactFlow>
+                </ReactFlowProvider>
             </div>
 
-            <div className="relative space-y-0 px-1">
-                {/* Continuous Line for current Branch */}
-                <div className="absolute left-[13.5px] top-2 bottom-2 w-[1.5px] bg-slate-100" />
-
-                {commits.slice().reverse().map((commit, index) => {
-                    const commitHash = Math.random().toString(16).substring(2, 8).toUpperCase()
-                    const isActive = index === 0
-
-                    return (
-                        <div key={index} className="relative group flex items-start gap-4 py-3 leading-relaxed transition-all cursor-pointer">
-
-                            {/* Graph Node */}
-                            <div className="relative z-10 pt-1.5 flex-shrink-0">
-                                <div
-                                    className={`w-3.5 h-3.5 rounded-full border-2 bg-white transition-all duration-300
-                    ${isActive ? 'scale-110 shadow-[0_0_12px_rgba(0,0,0,0.05)]' : 'border-slate-300'}
-                  `}
-                                    style={{
-                                        borderColor: isActive ? themeColor : undefined,
-                                        backgroundColor: isActive ? 'white' : 'white',
-                                        boxShadow: isActive ? `0 0 10px ${themeColor}22` : 'none'
-                                    }}
-                                >
-                                    {isActive && <div className="absolute inset-0 m-auto w-1 h-1 rounded-full animate-ping" style={{ backgroundColor: themeColor }} />}
-                                </div>
-                            </div>
-
-                            {/* Commit Info */}
-                            <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2 mb-1">
-                                    <span className="font-bold hud-text text-[10px]" style={{ color: isActive ? themeColor : '#94a3b8' }}>
-                                        {commitHash}
-                                    </span>
-                                    <span
-                                        className="px-1.5 py-0.5 rounded-[2px] text-[8px] font-black uppercase tracking-widest"
-                                        style={{
-                                            backgroundColor: isActive ? `${themeColor}15` : '#f1f5f9',
-                                            color: isActive ? themeColor : '#64748b'
-                                        }}
-                                    >
-                                        {currentBranch}
-                                    </span>
-                                </div>
-                                <p className={`font-bold transition-colors ${isActive ? 'text-slate-900' : 'text-slate-500'}`}>
-                                    {commit}
-                                </p>
-                                <div className="flex items-center gap-1.5 text-slate-300 font-bold text-[9px] mt-1 hud-text">
-                                    <span>DEV@ANTIGRAVITY</span>
-                                </div>
-                            </div>
-                        </div>
-                    )
-                })}
+            <div className="p-4 border-t border-[#8b5e3c]/10 text-[7px] text-[#8b5e3c]/40 font-bold uppercase tracking-[0.4em] text-center">
+                LOCKED TIMELINE VIEW
             </div>
         </div>
-    )
-}
+    );
+};

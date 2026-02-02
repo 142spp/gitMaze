@@ -1,74 +1,59 @@
-@import url('https://fonts.googleapis.com/css2?family=Fira+Code:wght@300;400;500;600;700&family=Inter:wght@400;700;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --bg-primary: #ffffff;
-  --bg-secondary: #f9fafb;
-  --text-primary: #111827;
-  --text-secondary: #6b7280;
-  --border-subtle: #f3f4f6;
-  --border-medium: #e5e7eb;
-}
-
-body {
-  margin: 0;
-  padding: 0;
-  background-color: var(--bg-primary);
-  color: var(--text-primary);
-  font-family: 'Inter', -apple-system, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  overflow: hidden;
-}
-
-#root {
-  width: 100vw;
-  height: 100vh;
-}
-
-/* Scrollbar styling for a clean tech look */
-::-webkit-scrollbar {
-  width: 4px;
-}
-
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-::-webkit-scrollbar-thumb {
-  background: #e2e8f0;
-  border-radius: 2px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: #cbd5e1;
-}
-
-/* Xterm overrides to match White Theme */
-.xterm-viewport::-webkit-scrollbar-thumb {
-  background: #e2e8f0;
-}
-
-@keyframes scanline {
-  0% {
-    transform: translateY(-100%);
-  }
-
-  100% {
-    transform: translateY(400%);
+@layer base {
+  body {
+    font-family: 'Nunito', sans-serif;
+    @apply bg-[#e6d5c3] antialiased overflow-hidden;
   }
 }
 
-.animate-scanline {
-  animation: scanline 6s linear infinite;
+@layer components {
+  .font-mono {
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  .hud-text {
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  /* Custom Scrollbar for Diary */
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: rgba(139, 94, 60, 0.3);
+    border-radius: 10px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: rgba(139, 94, 60, 0.5);
+  }
+
+  /* Page Curve Shadows */
+  .page-shadow-left {
+    @apply absolute right-0 top-0 bottom-0 w-12 bg-gradient-to-l from-black/10 to-transparent pointer-events-none mix-blend-multiply;
+  }
+
+  .page-shadow-right {
+    @apply absolute left-0 top-0 bottom-0 w-8 bg-gradient-to-r from-black/5 to-transparent pointer-events-none mix-blend-multiply;
+  }
 }
 
-/* Utility for high-density HUD text */
-.hud-text {
-  font-family: 'Fira Code', monospace;
-  letter-spacing: 0.1em;
-  font-weight: 700;
-  text-transform: uppercase;
+@layer utilities {
+  .perspective-1000 {
+    perspective: 1000px;
+  }
+
+  .clip-path-pencil {
+    clip-path: polygon(0 50%, 100% 0, 100% 100%);
+  }
 }
