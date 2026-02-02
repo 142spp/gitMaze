@@ -7,7 +7,7 @@ interface CommitNodeProps {
         id: string;
         message?: string;
         isHead: boolean;
-        branch?: string;
+        branches?: string[];
         themeColor?: string;
     };
 }
@@ -44,22 +44,17 @@ export const CommitNode = memo(({ data }: CommitNodeProps) => {
                     initial={{ opacity: 0, x: 10 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: 0.2 }}
-                    className="absolute left-6 top-[-10px] w-40 pointer-events-auto cursor-pointer select-none py-1"
+                    className="absolute left-4 top-[-5px] w-40 pointer-events-auto cursor-pointer select-none py-1"
                 >
                     <div className="flex items-center gap-1.5 mb-0.5">
                         <span className="text-[7px] font-black text-slate-500 font-mono tracking-tighter">#{data.id.substring(0, 6).toUpperCase()}</span>
-                        {data.branch && (
-                            <span className="px-1 py-0.2 rounded-[1px] text-[6px] font-black uppercase text-white shadow-sm"
+                        {data.branches?.map(branch => (
+                            <span key={branch} className="px-1 py-0.2 rounded-[1px] text-[6px] font-black uppercase text-white shadow-sm"
                                 style={{ backgroundColor: color }}>
-                                {data.branch}
+                                {branch}
                             </span>
-                        )}
+                        ))}
                     </div>
-                    {data.message && (
-                        <div className="text-slate-700 text-[8px] leading-tight font-bold truncate max-w-full bg-white/50 backdrop-blur-[1px] rounded-[1px] px-1 -ml-1 border-l border-slate-300 group-hover:whitespace-normal group-hover:bg-white group-hover:shadow-sm transition-all duration-200">
-                            {data.message}
-                        </div>
-                    )}
                 </motion.div>
             </div>
 

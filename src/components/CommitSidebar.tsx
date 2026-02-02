@@ -85,8 +85,9 @@ export const CommitSidebar: React.FC = () => {
 
         const rfNodes: Node[] = layout.map(node => {
             const commit = graph.commits.get(node.id);
-            const branchName = Array.from(graph.branches.entries())
-                .find(([_, cid]) => cid === node.id)?.[0];
+            const branches = Array.from(graph.branches.entries())
+                .filter(([_, cid]) => cid === node.id)
+                .map(([name]) => name);
 
             return {
                 id: node.id,
@@ -98,7 +99,7 @@ export const CommitSidebar: React.FC = () => {
                     id: node.id,
                     message: commit?.message,
                     isHead: node.id === headCommitId,
-                    branch: branchName,
+                    branches: branches,
                     themeColor: BRANCH_COLORS[node.lane % BRANCH_COLORS.length]
                 },
             };
@@ -122,7 +123,7 @@ export const CommitSidebar: React.FC = () => {
         });
 
         return { nodes: rfNodes, edges: rfEdges };
-    }, [graph, headCommitId]);
+    }, [graph, headCommitId, Array.from(graph.branches.keys()).join(',')]);
 
     const onNodeClick = useCallback((_: any, node: any) => {
         try {
