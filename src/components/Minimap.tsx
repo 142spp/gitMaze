@@ -40,7 +40,7 @@ export const Minimap: React.FC = () => {
                         style={{
                             backgroundColor: themeColor,
                             left: `${((playerPosition.x + 5) / 10) * 100}%`,
-                            top: `${((playerPosition.y + 5) / 10) * 100}%`,
+                            top: `${((playerPosition.z + 5) / 10) * 100}%`,
                             transform: 'translate(-50%, -50%)',
                         }}
                     >
@@ -54,8 +54,8 @@ export const Minimap: React.FC = () => {
                         <span className="text-amber-900">{playerPosition.x.toFixed(0).padStart(3, '0')}</span>
                     </div>
                     <div className="flex justify-between border-b border-amber-900/10 pb-0.5">
-                        <span>Y:</span>
-                        <span className="text-amber-900">{playerPosition.y.toFixed(0).padStart(3, '0')}</span>
+                        <span>Z:</span>
+                        <span className="text-amber-900">{playerPosition.z.toFixed(0).padStart(3, '0')}</span>
                     </div>
                 </div>
             </div>

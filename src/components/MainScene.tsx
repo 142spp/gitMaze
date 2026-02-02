@@ -58,19 +58,17 @@ export const MainScene: React.FC = () => {
                     </div>
 
                     {/* Polaroid Footer Text */}
-                    <div className="absolute bottom-4 left-0 right-0 text-center">
-                        <span className="font-mono text-[10px] text-gray-400 font-bold uppercase tracking-[0.4em] opacity-40">
-                            captured_state: {playerPosition.x.toFixed(0)},{playerPosition.y.toFixed(0)}
-                        </span>
-                    </div>
+                    <span className="font-mono text-[10px] text-gray-400 font-bold uppercase tracking-[0.4em] opacity-40">
+                        captured_state: {playerPosition.x.toFixed(0)},{playerPosition.z.toFixed(0)}
+                    </span>
                 </div>
+            </div>
 
-                {/* HUD Overlay (Matches Reference) */}
-                <div className="absolute -top-4 -left-4 pointer-events-none select-none z-30 font-mono">
-                    <div className="bg-white/90 backdrop-blur-[2px] p-2.5 rounded-lg shadow-sm border border-gray-100 rotate-[-4deg]">
-                        <p className="text-[10px] font-black text-gray-400 mb-0.5">POS ({playerPosition.x.toFixed(0)},{playerPosition.y.toFixed(0)})</p>
-                        <p className="text-[11px] font-black text-gray-600">ARROW KEYS TO MOVE</p>
-                    </div>
+            {/* HUD Overlay (Matches Reference) */}
+            <div className="absolute -top-4 -left-4 pointer-events-none select-none z-30 font-mono">
+                <div className="bg-white/90 backdrop-blur-[2px] p-2.5 rounded-lg shadow-sm border border-gray-100 rotate-[-4deg]">
+                    <p className="text-[10px] font-black text-gray-400 mb-0.5">POS ({playerPosition.x.toFixed(0)},{playerPosition.z.toFixed(0)})</p>
+                    <p className="text-[11px] font-black text-gray-600">ARROW KEYS TO MOVE</p>
                 </div>
             </div>
         </div>
