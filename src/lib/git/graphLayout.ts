@@ -13,46 +13,76 @@ export interface LayoutedNode {
  */
 export function calculateLayout(graph: GitGraph) {
     const nodes: LayoutedNode[] = [];
-    const branchLanes = new Map<string, number>();
     const commitLanes = new Map<string, number>();
+    const depthMap = new Map<string, number>();
+    const usedLanesAtDepth = new Map<number, Set<number>>();
 
-    // 1. Assign lanes to branches
-    let nextLane = 0;
-    branchLanes.set('main', 0);
-    nextLane = 1;
-
-    // Predictable order for branches
-    const branches = Array.from(graph.branches.keys()).sort();
-    branches.forEach(branch => {
-        if (branch !== 'main') {
-            branchLanes.set(branch, nextLane++);
+    // Helper: Calculate topological depth (distance from root)
+    const getDepth = (id: string): number => {
+        if (depthMap.has(id)) return depthMap.get(id)!;
+        const commit = graph.commits.get(id);
+        if (!commit || commit.parents.length === 0) {
+            depthMap.set(id, 0);
+            return 0;
         }
-    });
+        const depth = Math.max(...commit.parents.map(p => getDepth(p))) + 1;
+        depthMap.set(id, depth);
+        return depth;
+    };
 
-    // 2. Map commits to lanes
-    // Process branches in order of creation/priority
-    const sortedBranches = Array.from(branchLanes.entries()).sort((a, b) => a[1] - b[1]);
-
-    sortedBranches.forEach(([branchName, lane]) => {
-        let current: string | null = graph.branches.get(branchName) || null;
-        while (current && graph.commits.has(current)) {
-            if (!commitLanes.has(current)) {
-                commitLanes.set(current, lane);
-            }
-            const commit = graph.commits.get(current)!;
-            current = commit.parents.length > 0 ? commit.parents[0] : null;
-        }
-    });
-
-    // 3. Create nodes (Vertical flow: oldest at top Y=0)
+    // 1. Sort commits by timestamp
     const sortedCommits = Array.from(graph.commits.values()).sort((a, b) => a.timestamp - b.timestamp);
 
-    sortedCommits.forEach((commit, index) => {
+    // Pre-calculate depths
+    sortedCommits.forEach(c => getDepth(c.id));
+
+    // 2. Assign lanes and depth-based positions
+    sortedCommits.forEach((commit) => {
+        const depth = depthMap.get(commit.id)!;
+        let assignedLane = -1;
+
+        // Try to stay in the same lane as the primary parent
+        if (commit.parents.length > 0) {
+            const primaryParentId = commit.parents[0];
+            const parentLane = commitLanes.get(primaryParentId);
+
+            if (parentLane !== undefined) {
+                // Check if this lane is free at this specific depth
+                const usedInDepth = usedLanesAtDepth.get(depth) || new Set();
+                if (!usedInDepth.has(parentLane)) {
+                    assignedLane = parentLane;
+                }
+            }
+        }
+
+        // If no parent lane or parent lane is occupied at this depth, find the first available lane
+        if (assignedLane === -1) {
+            let lane = 0;
+            const usedInDepth = usedLanesAtDepth.get(depth) || new Set();
+            while (usedInDepth.has(lane)) {
+                lane++;
+            }
+            assignedLane = lane;
+        }
+
+        commitLanes.set(commit.id, assignedLane);
+
+        // Mark lane as used for this depth
+        if (!usedLanesAtDepth.has(depth)) {
+            usedLanesAtDepth.set(depth, new Set());
+        }
+        usedLanesAtDepth.get(depth)!.add(assignedLane);
+    });
+
+    // 3. Create nodes with updated spacing
+    sortedCommits.forEach((commit) => {
         const lane = commitLanes.get(commit.id) ?? 0;
+        const depth = depthMap.get(commit.id) ?? 0;
+
         nodes.push({
             id: commit.id,
-            x: lane * 40,   // Compact horizontal spacing
-            y: index * 40,  // Consistent vertical spacing
+            x: lane * 30,
+            y: depth * 40,  // Using depth for Y to allow horizontal alignment
             lane: lane
         });
     });

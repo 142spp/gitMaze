@@ -49,7 +49,7 @@ const CommitEdge = ({
         <BaseEdge
             id={id}
             path={edgePath}
-            style={{ ...style, stroke: edgeColor, strokeWidth: 2, opacity: 0.8 }}
+            style={{ ...style, stroke: edgeColor, strokeWidth: 1.5, opacity: 0.8 }}
             markerEnd={markerEnd}
         />
     );

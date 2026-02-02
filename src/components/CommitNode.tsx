@@ -47,7 +47,7 @@ export const CommitNode = memo(({ data }: CommitNodeProps) => {
             </div>
 
             {/* Commit Hash - Centered below circle, with margin bottom to clear handle */}
-            <div className="mt-1 mb-0 flex justify-center whitespace-nowrap font-mono text-[8px] pointer-events-auto cursor-pointer select-none">
+            <div className="mt-0 mb-0 flex justify-center whitespace-nowrap font-mono text-[8px] pointer-events-auto cursor-pointer select-none">
                 <span className={`font-black tracking-tighter ${data.isHead ? 'text-slate-900' : 'text-slate-600'}`}>
                     {data.id.toUpperCase()}
                 </span>

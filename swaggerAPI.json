@@ -1,0 +1,239 @@
+{
+    "openapi": "3.1.0",
+    "info": {
+        "title": "GitMaze API",
+        "description": "API documentation for GitMaze application",
+        "version": "v1.0"
+    },
+    "servers": [
+        {
+            "url": "http://localhost:8080",
+            "description": "Generated server url"
+        }
+    ],
+    "paths": {
+        "/api/game/end": {
+            "post": {
+                "tags": [
+                    "game-result-controller"
+                ],
+                "operationId": "endGame",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "type": "object",
+                                "additionalProperties": {
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/api/dimension/push": {
+            "post": {
+                "tags": [
+                    "dimension-controller"
+                ],
+                "operationId": "pushDimensions",
+                "requestBody": {
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/DimensionPushDto"
+                            }
+                        }
+                    },
+                    "required": true
+                },
+                "responses": {
+                    "200": {
+                        "description": "OK"
+                    }
+                }
+            }
+        },
+        "/api/maze/generate": {
+            "get": {
+                "tags": [
+                    "maze-controller"
+                ],
+                "operationId": "getNewMaze",
+                "parameters": [
+                    {
+                        "name": "width",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int32",
+                            "default": 6
+                        }
+                    },
+                    {
+                        "name": "height",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "format": "int32",
+                            "default": 6
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/MazeResponse"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/dimension/pull": {
+            "get": {
+                "tags": [
+                    "dimension-controller"
+                ],
+                "operationId": "pullDimensions",
+                "parameters": [
+                    {
+                        "name": "userId",
+                        "in": "query",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "content": {
+                            "*/*": {
+                                "schema": {
+                                    "type": "object",
+                                    "additionalProperties": {
+                                        "type": "object"
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "components": {
+        "schemas": {
+            "DimensionPushDto": {
+                "type": "object",
+                "properties": {
+                    "userId": {
+                        "type": "string"
+                    },
+                    "dimensions": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "type": "object"
+                        }
+                    }
+                }
+            },
+            "Item": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string"
+                    },
+                    "x": {
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "z": {
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "type": {
+                        "type": "string"
+                    }
+                }
+            },
+            "MazeResponse": {
+                "type": "object",
+                "properties": {
+                    "width": {
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "height": {
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "walls": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/Wall"
+                        }
+                    },
+                    "items": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/Item"
+                        }
+                    },
+                    "startPos": {
+                        "type": "object",
+                        "additionalProperties": {
+                            "type": "integer",
+                            "format": "int32"
+                        }
+                    }
+                }
+            },
+            "Wall": {
+                "type": "object",
+                "properties": {
+                    "id": {
+                        "type": "string"
+                    },
+                    "startX": {
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "startZ": {
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "endX": {
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "endZ": {
+                        "type": "integer",
+                        "format": "int32"
+                    },
+                    "type": {
+                        "type": "string"
+                    },
+                    "opened": {
+                        "type": "boolean"
+                    }
+                }
+            }
+        }
+    }
+}
