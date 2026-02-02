@@ -7,11 +7,11 @@ import {
     EdgeProps,
     getBezierPath,
     Edge,
-    Node
+    Node,
 } from '@xyflow/react';
+import { motion } from 'framer-motion';
 import '@xyflow/react/dist/style.css';
 import { useGameStore } from '../store/useGameStore';
-import { GitBranch } from 'lucide-react';
 import { CommitNode } from './CommitNode';
 import { calculateLayout } from '../lib/git/graphLayout';
 
@@ -46,12 +46,24 @@ const CommitEdge = ({
     const edgeColor = (data as any)?.color || '#e2e8f0';
 
     return (
-        <BaseEdge
-            id={id}
-            path={edgePath}
-            style={{ ...style, stroke: edgeColor, strokeWidth: 1.5, opacity: 0.8 }}
-            markerEnd={markerEnd}
-        />
+        <g>
+            <motion.path
+                id={id}
+                d={edgePath}
+                fill="none"
+                stroke={edgeColor}
+                strokeWidth={1.5}
+                opacity={0.6}
+                initial={{ pathLength: 0, opacity: 0 }}
+                animate={{ pathLength: 1, opacity: 0.6 }}
+                transition={{ duration: 0.8, ease: "easeOut" }}
+                style={style}
+            />
+            <BaseEdge
+                path={edgePath}
+                style={{ ...style, stroke: 'transparent', strokeWidth: 10 }} // Interaction layer
+            />
+        </g>
     );
 };
 
@@ -72,6 +84,7 @@ export const CommitSidebar: React.FC = () => {
         const commitToLane = new Map(layout.map(l => [l.id, l.lane]));
 
         const rfNodes: Node[] = layout.map(node => {
+            const commit = graph.commits.get(node.id);
             const branchName = Array.from(graph.branches.entries())
                 .find(([_, cid]) => cid === node.id)?.[0];
 
@@ -83,6 +96,7 @@ export const CommitSidebar: React.FC = () => {
                 selectable: false,
                 data: {
                     id: node.id,
+                    message: commit?.message,
                     isHead: node.id === headCommitId,
                     branch: branchName,
                     themeColor: BRANCH_COLORS[node.lane % BRANCH_COLORS.length]
@@ -138,11 +152,18 @@ export const CommitSidebar: React.FC = () => {
                         zoomOnPinch={false}
                         zoomOnDoubleClick={false}
                         selectionOnDrag={false}
-
                         fitView={false}
-                        defaultViewport={{ x: 100, y: 30, zoom: 2 }}
+                        defaultViewport={{ x: 50, y: 30, zoom: 2.2 }}
                         proOptions={{ hideAttribution: true }}
                     >
+                        <svg style={{ position: 'absolute', top: 0, left: 0, width: 0, height: 0 }}>
+                            <defs>
+                                <linearGradient id="edge-gradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                                    <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.8" />
+                                    <stop offset="100%" stopColor="#a855f7" stopOpacity="0.8" />
+                                </linearGradient>
+                            </defs>
+                        </svg>
 
                         <Background color="#e6d5c3" gap={20} size={0.5} />
                     </ReactFlow>
