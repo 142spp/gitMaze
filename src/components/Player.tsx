@@ -15,9 +15,9 @@ export const Player: React.FC = () => {
         if (groupRef.current) {
             // Sync position with smoothing
             groupRef.current.position.lerp({
-                x: playerPosition.x,
+                x: playerPosition.x + 0.5,
                 y: 0.5 + Math.sin(state.clock.elapsedTime * 2.5) * 0.15, // Float
-                z: playerPosition.y
+                z: playerPosition.z + 0.5
             }, 0.1)
 
             groupRef.current.rotation.y += delta * 1.5

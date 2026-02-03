@@ -1,18 +1,40 @@
 /**
- * Maze tile types
+ * Wall Type - from User JSON
  */
-export type TileType = 'empty' | 'wall' | 'player' | 'key' | 'door' | 'glitch';
+export interface Wall {
+    id: string;
+    startX: number;
+    startZ: number;
+    endX: number;
+    endZ: number;
+    type: 'VERTICAL' | 'HORIZONTAL';
+    opened: boolean;
+}
+
+/**
+ * Item Type - from User JSON
+ */
+export interface Item {
+    id: string;
+    x: number;
+    z: number;
+    type: string;
+}
 
 /**
  * Memento: Snapshot of the maze state at a specific point in time (commit)
  */
 export interface MazeState {
-    // 1. Maze physical structure (Grid)
-    grid: TileType[][];
-    // 2. Player state
-    playerPosition: { x: number, y: number };
+    width: number;
+    height: number;
+    walls: Wall[];
+    items: Item[];
+    startPos: { x: number; y: number } | { x: number; z: number }; // User JSON has startPos.x/z but we use x/y historically, let's normalize to x/z in future or adapt. User JSON said "startPos": { "x": 0, "z": 0 }
+    
+    // Player state (Session state, might not be in JSON but needed for runtime)
+    playerPosition: { x: number, z: number }; 
     inventory: string[];
-    // 3. Puzzle state (e.g., flags for doors, switches, etc.)
+    // Puzzle state
     flags: Record<string, boolean>;
 }
 

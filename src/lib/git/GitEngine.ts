@@ -10,12 +10,18 @@ export class GitEngine {
      * init(): 우주의 시작
      */
     constructor(initialState: MazeState) {
+        // Ensure player position is normalized
+        const normalizedState = {
+            ...initialState,
+            playerPosition: initialState.playerPosition || { x: 0, z: 0 }
+        };
+
         const initialCommit: CommitNode = {
             id: this.generateHash(),
             message: 'Initial commit',
             parents: [],
             timestamp: Date.now(),
-            snapshot: this.cloneState(initialState),
+            snapshot: this.cloneState(normalizedState),
         };
 
         this.graph = {

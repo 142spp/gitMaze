@@ -1,53 +1,48 @@
 import React, { useMemo, useRef, useEffect } from 'react'
 import { useFrame } from '@react-three/fiber'
-import { InstancedMesh, Object3D, Color } from 'three'
+import { InstancedMesh, Object3D, Color, Vector3 } from 'three'
 import { useGameStore } from '../store/useGameStore'
-import { TileType } from '../lib/git/types'
+import { Wall, Item } from '../lib/git/types'
 
 const tempObject = new Object3D()
 const tempColor = new Color()
 
 export const MazeManager: React.FC = () => {
     const currentMaze = useGameStore((state) => state.currentMaze)
-    const grid = currentMaze.grid
+    const { width, height, walls, items } = currentMaze
 
     const wallRef = useRef<InstancedMesh>(null)
     const floorRef = useRef<InstancedMesh>(null)
     const gemRef = useRef<InstancedMesh>(null)
 
-    const themeColor = '#2563eb' // Default theme color for now
+    const themeColor = '#2563eb'
 
-    const { walls, floors, gems } = useMemo(() => {
-        const w: { position: [number, number, number] }[] = []
-        const f: { position: [number, number, number] }[] = []
-        const g: { position: [number, number, number] }[] = []
-
-        grid.forEach((row, z) => {
-            row.forEach((tile, x) => {
-                if (tile === 'wall') {
-                    w.push({ position: [x, 0, z] })
-                } else {
-                    f.push({ position: [x, 0, z] })
-                    if ((x + z) % 15 === 0) {
-                        g.push({ position: [x, 0.5, z] })
-                    }
-                }
-            })
-        })
-
-        return { walls: w, floors: f, gems: g }
-    }, [grid])
+    // Compute Floor Transforms
+    // We create a floor for every 1x1 cell in the width x height grid
+    const floorTransforms = useMemo(() => {
+        const t: { x: number, z: number }[] = []
+        for (let x = 0; x < width; x++) {
+            for (let z = 0; z < height; z++) {
+                t.push({ x, z })
+            }
+        }
+        return t
+    }, [width, height])
 
     useEffect(() => {
-        // Update Floors
+        // Update Floor Internals
         if (floorRef.current) {
-            floors.forEach((node, i) => {
-                tempObject.position.set(node.position[0], -0.25, node.position[2])
+            floorTransforms.forEach((pos, i) => {
+                // Offset by 0.5 to center tiles between integer grid lines (walls)
+                tempObject.position.set(pos.x + 0.5, -0.25, pos.z + 0.5)
+                tempObject.rotation.set(0, 0, 0)
                 tempObject.scale.set(1, 1, 1)
                 tempObject.updateMatrix()
                 floorRef.current!.setMatrixAt(i, tempObject.matrix)
 
-                tempColor.set('#ffffff')
+                // Checkerboard pattern or simple color
+                const isEven = (pos.x + pos.z) % 2 === 0
+                tempColor.set(isEven ? '#f8fafc' : '#f1f5f9')
                 floorRef.current!.setColorAt(i, tempColor)
             })
             floorRef.current.instanceMatrix.needsUpdate = true
@@ -56,41 +51,83 @@ export const MazeManager: React.FC = () => {
 
         // Update Walls
         if (wallRef.current) {
-            walls.forEach((node, i) => {
-                tempObject.position.set(node.position[0], 0.5, node.position[2])
-                tempObject.scale.set(0.9, 1.5, 0.9)
-                tempObject.updateMatrix()
-                wallRef.current!.setMatrixAt(i, tempObject.matrix)
+            let activeWallIndex = 0;
+            walls.forEach((wall) => {
+                if (wall.opened) return; // Skip opened walls (doors)
 
-                tempColor.set(themeColor).multiplyScalar(1.2)
-                wallRef.current!.setColorAt(i, tempColor)
+                // Calculate center position
+                // Logic: (startX + endX) / 2, (startZ + endZ) / 2
+                const cx = (wall.startX + wall.endX) / 2;
+                const cz = (wall.startZ + wall.endZ) / 2;
+
+                tempObject.position.set(cx, 0.5, cz);
+
+                // Calculate Rotation & Scale
+                // If Type is VERTICAL (extends along Z), rotated 0 (or 180).
+                // If Type is HORIZONTAL (extends along X), rotated 90 degrees.
+                if (wall.type === 'HORIZONTAL') {
+                    tempObject.rotation.set(0, Math.PI / 2, 0)
+                    // Length adjustment if ends are far apart, but assuming 1 unit length for now based on JSON
+                } else {
+                    tempObject.rotation.set(0, 0, 0)
+                }
+
+                tempObject.scale.set(0.2, 1.5, 1.1) // Thickness, Height, Length
+                tempObject.updateMatrix()
+
+                wallRef.current!.setMatrixAt(activeWallIndex, tempObject.matrix)
+
+                // Active/Inactive color
+                tempColor.set(themeColor)
+                wallRef.current!.setColorAt(activeWallIndex, tempColor)
+
+                activeWallIndex++;
             })
+
+            // Should set count to actual number of visible walls ?
+            // For now, we allocated max size (walls.length) but some are invisible.
+            // InstancedMesh doesn't easily support variable count without strict management.
+            // Strategy: Move unused instances to infinity.
+            for (let j = activeWallIndex; j < walls.length; j++) {
+                tempObject.position.set(0, -999, 0)
+                tempObject.updateMatrix()
+                wallRef.current!.setMatrixAt(j, tempObject.matrix)
+            }
+
             wallRef.current.instanceMatrix.needsUpdate = true
             if (wallRef.current.instanceColor) wallRef.current.instanceColor.needsUpdate = true
         }
 
-        // Update Gems
+        // Update Items (Gems)
         if (gemRef.current) {
-            gems.forEach((node, i) => {
-                tempObject.position.set(node.position[0], 0.5, node.position[2])
-                tempObject.scale.set(0.2, 0.2, 0.2)
+            items.forEach((item, i) => {
+                // Offset by 0.5 to center items in cells
+                tempObject.position.set(item.x + 0.5, 0.5, item.z + 0.5)
+                tempObject.rotation.set(0, 0, 0)
+                tempObject.scale.set(0.3, 0.3, 0.3)
                 tempObject.updateMatrix()
                 gemRef.current!.setMatrixAt(i, tempObject.matrix)
 
-                tempColor.set('#f59e0b') // Amber/Yellow
+                tempColor.set('#f59e0b')
                 gemRef.current!.setColorAt(i, tempColor)
             })
             gemRef.current.instanceMatrix.needsUpdate = true
             if (gemRef.current.instanceColor) gemRef.current.instanceColor.needsUpdate = true
         }
-    }, [walls, floors, gems, themeColor])
+
+    }, [width, height, walls, items, floorTransforms])
 
     useFrame((state) => {
+        // Animate Items
         if (gemRef.current) {
-            gems.forEach((node, i) => {
-                tempObject.position.set(node.position[0], 0.4 + Math.sin(state.clock.elapsedTime * 3 + i) * 0.1, node.position[2])
-                tempObject.rotation.y += 0.05
-                tempObject.scale.set(0.2, 0.2, 0.2)
+            items.forEach((item, i) => {
+                const time = state.clock.elapsedTime
+                const yOffset = Math.sin(time * 2 + i) * 0.1
+                tempObject.position.set(item.x + 0.5, 0.5 + yOffset, item.z + 0.5)
+                tempObject.rotation.y += 0.02
+                tempObject.rotation.z = Math.sin(time) * 0.1
+                tempObject.scale.set(0.3, 0.3, 0.3)
+
                 tempObject.updateMatrix()
                 gemRef.current!.setMatrixAt(i, tempObject.matrix)
             })
@@ -100,22 +137,22 @@ export const MazeManager: React.FC = () => {
 
     return (
         <group>
-            {/* Floors: Subtle grid tiles */}
-            <instancedMesh ref={floorRef} args={[undefined, undefined, floors.length]} receiveShadow>
-                <boxGeometry args={[0.98, 0.5, 0.98]} />
-                <meshStandardMaterial metalness={0.1} roughness={0.8} />
+            {/* Floors */}
+            <instancedMesh ref={floorRef} args={[undefined, undefined, width * height]} receiveShadow>
+                <boxGeometry args={[0.95, 0.5, 0.95]} />
+                <meshStandardMaterial color="#f1f5f9" />
             </instancedMesh>
 
-            {/* Walls: High-tech pillars */}
-            <instancedMesh ref={wallRef} args={[undefined, undefined, walls.length]} castShadow>
+            {/* Walls */}
+            <instancedMesh ref={wallRef} args={[undefined, undefined, walls.length]} castShadow receiveShadow>
                 <boxGeometry args={[1, 1, 1]} />
-                <meshStandardMaterial metalness={0.9} roughness={0.1} transparent opacity={0.8} />
+                <meshStandardMaterial transparent opacity={0.9} metalness={0.8} roughness={0.2} />
             </instancedMesh>
 
-            {/* Data Nodes (Gems) */}
-            <instancedMesh ref={gemRef} args={[undefined, undefined, gems.length]}>
+            {/* Items */}
+            <instancedMesh ref={gemRef} args={[undefined, undefined, items.length]} castShadow>
                 <octahedronGeometry args={[1, 0]} />
-                <meshStandardMaterial emissive="#f59e0b" emissiveIntensity={2} color="#f59e0b" />
+                <meshStandardMaterial emissive="#f59e0b" emissiveIntensity={1} color="#f59e0b" />
             </instancedMesh>
         </group>
     )
