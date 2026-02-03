@@ -30,9 +30,9 @@ export interface MazeState {
     walls: Wall[];
     items: Item[];
     startPos: { x: number; y: number } | { x: number; z: number }; // User JSON has startPos.x/z but we use x/y historically, let's normalize to x/z in future or adapt. User JSON said "startPos": { "x": 0, "z": 0 }
-    
+
     // Player state (Session state, might not be in JSON but needed for runtime)
-    playerPosition: { x: number, z: number }; 
+    playerPosition: { x: number, z: number };
     inventory: string[];
     // Puzzle state
     flags: Record<string, boolean>;
@@ -48,6 +48,7 @@ export interface CommitNode {
     message: string;
     parents: CommitHash[]; // Multiple parents for merge commits
     timestamp: number;
+    branch: string; // The branch this commit was created on
 
     // Snapshot of the world at this commit
     snapshot: MazeState;

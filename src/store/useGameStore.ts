@@ -2,6 +2,8 @@ import { create } from 'zustand'
 import { GitEngine } from '../lib/git/GitEngine'
 import { MazeState } from '../lib/git/types'
 import { api } from '../lib/api'
+import { useTerminalStore } from './useTerminalStore'
+import { CommandHandler } from '../lib/git/CommandHandler'
 
 interface GameState {
     // Session
@@ -12,12 +14,10 @@ interface GameState {
     // Core Engines
     git: GitEngine;
     currentMaze: MazeState;
-    terminalHistory: string[];
 
     // Actions
     initialize: () => Promise<void>;
     sendCommand: (cmd: string) => Promise<void>;
-    addLog: (log: string) => void;
 
     // Internal Actions
     syncToBackend: () => Promise<void>;
@@ -56,18 +56,13 @@ export const useGameStore = create<GameState>((set, get) => {
 
         git,
         currentMaze: INITIAL_PLACEHOLDER,
-        terminalHistory: ['Welcome to gitMaze.', 'Initializing system...'],
-
-        /**
-         * 터미널 로그에 메시지를 추가합니다.
-         */
-        addLog: (log: string) => set((state) => ({ terminalHistory: [...state.terminalHistory, log] })),
 
         /**
          * 시스템 초기화: 서버 또는 로컬 스토리지에서 이전 세션을 복구하거나 새로운 미로를 생성합니다.
          */
         initialize: async () => {
-            const { userId, addLog } = get();
+            const { userId } = get();
+            const { addLog } = useTerminalStore.getState();
             set({ isLoading: true, error: null });
 
             try {
@@ -128,100 +123,23 @@ export const useGameStore = create<GameState>((set, get) => {
          * @param cmd 입력된 명령어 문자열
          */
         sendCommand: async (cmd: string) => {
-            const { git, addLog, syncToBackend } = get();
-            const parts = cmd.trim().split(/\s+/);
+            const { git, syncToBackend, initialize } = get();
+            const { addLog } = useTerminalStore.getState();
 
-            addLog(`> ${cmd}`);
-
-            try {
-                let shouldSync = false;
-
-                // 명령어 라우팅 로직
-                if (parts[0] === 'help') {
-                    addLog('Available: git checkout -b <name>, git checkout <name>, git commit -m "<msg>", git merge <branch>, git reset <target>');
-                }
-                else if (parts[0] === 'git' && parts[1] === 'branch') {
-                    const branchName = parts[2];
-                    if (branchName) {
-                        git.createBranch(branchName);
-                        addLog(`Branch '${branchName}' created.`);
-                        shouldSync = true;
-                    } else {
-                        // 브랜치 목록 출력
-                        const branches = git.getBranches();
-                        const head = git.getGraph().HEAD;
-                        const currentBranch = head.type === 'branch' ? head.ref : null;
-
-                        branches.forEach(branch => {
-                            if (branch === currentBranch) {
-                                addLog(`* ${branch}`);
-                            } else {
-                                addLog(`  ${branch}`);
-                            }
-                        });
-                    }
-                }
-                else if (parts[0] === 'git' && parts[1] === 'checkout') {
-                    let target = parts[2];
-
-                    if (target === '-b') {
-                        target = parts[3];
-                        if (!target) throw new Error('Branch name required');
-                        git.createBranch(target);
-                        addLog(`Created branch '${target}'`);
-                        shouldSync = true;
-                    }
-
-                    const newState = git.checkout(target);
-                    // 차원 이동 시 미로 상태 업데이트
-                    set({ currentMaze: newState });
-                    addLog(`Switched to '${target}'`);
-                    shouldSync = true;
-                }
-                else if (parts[0] === 'git' && parts[1] === 'commit') {
-                    const msgMatch = cmd.match(/"([^"]+)"/);
-                    const msg = msgMatch ? msgMatch[1] : (parts.slice(3).join(' ') || 'New commit');
-
-                    // 현재 미로 상태를 스냅샷으로 저장
-                    const commitId = git.commit(msg, get().currentMaze);
-                    addLog(`[${commitId.substring(0, 7)}] ${msg}`);
-                    shouldSync = true;
-                }
-                else if (parts[0] === 'git' && parts[1] === 'merge') {
-                    const target = parts[2];
-                    if (!target) throw new Error('Merge target branch required');
-                    const result = git.merge(target);
-                    addLog(result);
-                    shouldSync = true;
-                }
-                else if (parts[0] === 'git' && parts[1] === 'reset') {
-                    const mode = parts.includes('--hard') ? 'hard' : 'soft';
-                    const target = parts.find(p => !p.startsWith('--') && p !== 'git' && p !== 'reset') || 'HEAD';
-
-                    const newState = git.reset(target, mode, get().currentMaze);
-                    set({ currentMaze: newState });
-                    addLog(`Reset to ${target} (${mode})`);
-                    shouldSync = true;
-                }
-                else if (parts[0] === 'git' && parts[1] === 'push') {
-                    await syncToBackend();
-                    addLog('Saved to server.');
-                }
-                else if (parts[0] === 'git' && parts[1] === 'pull') {
-                    await get().initialize();
-                }
-                else {
-                    addLog(`Command not recognized: ${cmd}`);
-                }
-
-                // 상태 변화가 있는 경우 동기화 수행
-                if (shouldSync) {
-                    await syncToBackend();
-                }
-
-            } catch (error: any) {
-                addLog(`Error: ${error.message}`);
+            // Special case for git pull as it needs store's initialize
+            if (cmd.trim() === 'git pull') {
+                addLog(`> ${cmd}`);
+                await initialize();
+                return;
             }
+
+            await CommandHandler.execute(cmd, {
+                git,
+                currentMaze: get().currentMaze,
+                addLog,
+                setMaze: (maze) => set({ currentMaze: maze }),
+                syncToBackend
+            });
         }
     }
 })

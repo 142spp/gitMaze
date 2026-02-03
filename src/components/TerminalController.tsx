@@ -3,12 +3,13 @@ import { Terminal } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import '@xterm/xterm/css/xterm.css'
 import { useGameStore } from '../store/useGameStore'
+import { useTerminalStore } from '../store/useTerminalStore'
 
 export const TerminalController: React.FC = () => {
     const terminalRef = useRef<HTMLDivElement>(null)
     const xtermRef = useRef<Terminal | null>(null)
     const sendCommand = useGameStore((state) => state.sendCommand)
-    const terminalHistory = useGameStore((state) => state.terminalHistory)
+    const terminalHistory = useTerminalStore((state) => state.terminalHistory)
 
     const PROMPT = '\x1b[1;38;2;139;94;60muser@git-maze\x1b[0m:\x1b[1;38;2;160;120;90m~\x1b[0m$ '
 

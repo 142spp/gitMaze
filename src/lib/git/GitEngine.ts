@@ -24,6 +24,7 @@ export class GitEngine {
             message: 'Initial commit',
             parents: [],
             timestamp: Date.now(),
+            branch: 'main',
             snapshot: this.cloneState(normalizedState),
         };
 
@@ -45,11 +46,13 @@ export class GitEngine {
      */
     commit(message: string, state: MazeState): string {
         const parentId = this.getCurrentCommitId();
+        const currentBranch = this.graph.HEAD.type === 'branch' ? this.graph.HEAD.ref : 'detached';
         const newCommit: CommitNode = {
             id: this.generateHash(),
             message,
             parents: parentId ? [parentId] : [],
             timestamp: Date.now(),
+            branch: currentBranch,
             snapshot: this.cloneState(state),
         };
 
@@ -174,6 +177,7 @@ export class GitEngine {
             message: `Merge branch '${targetBranch}' into ${currentBranch}`,
             parents: [sourceCommitId, targetCommitId],
             timestamp: Date.now(),
+            branch: currentBranch,
             snapshot: this.cloneState(this.graph.commits.get(sourceCommitId)!.snapshot),
         };
 

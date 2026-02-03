@@ -12,6 +12,7 @@ import {
 import { motion } from 'framer-motion';
 import '@xyflow/react/dist/style.css';
 import { useGameStore } from '../store/useGameStore';
+import { useTerminalStore } from '../store/useTerminalStore';
 import { CommitNode } from './CommitNode';
 import { calculateLayout } from '../lib/git/graphLayout';
 
@@ -21,6 +22,13 @@ const nodeTypes = {
 
 // Vibrant color palette for branches
 const BRANCH_COLORS = ["#f97316", "#eab308", "#22c55e", "#a855f7", "#ef4444", "#06b6d4"];
+
+const getBranchColor = (branchName: string) => {
+    if (!branchName) return '#2563eb';
+    // Stable hash for branch name
+    const hash = branchName.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+    return BRANCH_COLORS[hash % BRANCH_COLORS.length];
+};
 
 const CommitEdge = ({
     id,
@@ -74,8 +82,8 @@ const edgeTypes = {
 
 export const CommitSidebar: React.FC = () => {
     const git = useGameStore((state) => state.git);
-    const setMaze = useGameStore((state) => (newState: any) => useGameStore.setState({ currentMaze: newState }));
-    const addLog = useGameStore((state) => state.addLog);
+    const setMaze = (newState: any) => useGameStore.setState({ currentMaze: newState });
+    const addLog = useTerminalStore((state) => state.addLog);
 
     const graph = git.getGraph();
     const headCommitId = git.getCurrentCommitId();
@@ -83,17 +91,18 @@ export const CommitSidebar: React.FC = () => {
 
     const { nodes, edges } = useMemo(() => {
         const layout = calculateLayout(graph);
-        const commitToLane = new Map(layout.map(l => [l.id, l.lane]));
         const currentSeen = new Set<string>();
 
         const rfNodes: Node[] = layout.map(node => {
             const commit = graph.commits.get(node.id);
-            const branches = Array.from(graph.branches.entries())
+            const branchBadges = Array.from(graph.branches.entries())
                 .filter(([_, cid]) => cid === node.id)
-                .map(([name]) => name);
+                .map(([name]) => ({ name, color: getBranchColor(name) }));
 
             const isNew = !seenIds.current.has(node.id);
             currentSeen.add(node.id);
+
+            const commitBranch = (commit as any)?.branch || 'main';
 
             return {
                 id: node.id,
@@ -105,8 +114,8 @@ export const CommitSidebar: React.FC = () => {
                     id: node.id,
                     message: commit?.message,
                     isHead: node.id === headCommitId,
-                    branches: branches,
-                    themeColor: BRANCH_COLORS[node.lane % BRANCH_COLORS.length],
+                    branches: branchBadges,
+                    themeColor: getBranchColor(commitBranch),
                     isNew,
                 },
             };
@@ -115,10 +124,11 @@ export const CommitSidebar: React.FC = () => {
         const rfEdges: Edge[] = [];
         graph.commits.forEach(commit => {
             commit.parents.forEach(parentId => {
-                const lane = commitToLane.get(commit.id) ?? 0; // Use child's lane for the edge color
                 const edgeId = `${parentId}-${commit.id}`;
                 const isNew = !seenIds.current.has(edgeId);
                 currentSeen.add(edgeId);
+
+                const commitBranch = (commit as any).branch || 'main';
 
                 rfEdges.push({
                     id: edgeId,
@@ -127,7 +137,7 @@ export const CommitSidebar: React.FC = () => {
                     type: 'commitEdge',
                     focusable: false,
                     data: {
-                        color: BRANCH_COLORS[lane % BRANCH_COLORS.length],
+                        color: getBranchColor(commitBranch),
                         isNew,
                     }
                 });

@@ -7,7 +7,7 @@ interface CommitNodeProps {
         id: string;
         message?: string;
         isHead: boolean;
-        branches?: string[];
+        branches?: { name: string; color: string }[];
         themeColor?: string;
         isNew?: boolean;
     };
@@ -52,9 +52,9 @@ export const CommitNode = memo(({ data }: CommitNodeProps) => {
                     </div>
                     <div className="flex flex-wrap gap-1">
                         {data.branches?.map(branch => (
-                            <span key={branch} className="px-1 py-0.2 rounded-[1px] text-[6px] font-black uppercase text-white shadow-sm"
-                                style={{ backgroundColor: color }}>
-                                {branch}
+                            <span key={branch.name} className="px-1 py-0.2 rounded-[1px] text-[6px] font-black uppercase text-white shadow-sm"
+                                style={{ backgroundColor: branch.color }}>
+                                {branch.name}
                             </span>
                         ))}
                     </div>
