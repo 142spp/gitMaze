@@ -100,4 +100,21 @@
     backface-visibility: hidden;
     /* Or visible depending on effect */
   }
+
+  @keyframes page-flip {
+    0% {
+      transform: rotateY(0deg);
+    }
+
+    100% {
+      transform: rotateY(-180deg);
+    }
+  }
+
+  .animate-page-flip {
+    animation: page-flip 1.5s cubic-bezier(0.645, 0.045, 0.355, 1) forwards;
+    transform-origin: left center;
+    transform-style: preserve-3d;
+    z-index: 100;
+  }
 }

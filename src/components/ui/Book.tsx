@@ -10,6 +10,7 @@ interface BookProps {
 export function Book({ leftContent, rightContent }: BookProps) {
     const visualEffect = useGameStore(state => state.visualEffect);
     const confirmTear = useGameStore(state => state.confirmTear);
+    const confirmFlip = useGameStore(state => state.confirmFlip);
     const isTearing = visualEffect === 'tearing';
 
     const bookRef = useRef<HTMLDivElement>(null);
@@ -17,7 +18,21 @@ export function Book({ leftContent, rightContent }: BookProps) {
 
     // Handle Preparation (Screenshot)
     useEffect(() => {
-        if (visualEffect === 'preparing' && bookRef.current) {
+        if ((visualEffect === 'preparing-tear' || visualEffect === 'preparing-flip') && bookRef.current) {
+            // Generate random jagged path ONLY if tearing
+            if (visualEffect === 'preparing-tear') {
+                let path = 'polygon(100% 0, 100% 100%';
+                const steps = 40;
+                for (let i = steps; i >= 0; i--) {
+                    const percentage = i / steps;
+                    const y = percentage * 100;
+                    const x = Math.random() * 3;
+                    path += `, ${x}% ${y}%`;
+                }
+                path += ')';
+                setTearPath(path);
+            }
+
             const capture = async () => {
                 try {
                     const canvas = await html2canvas(bookRef.current!, {
@@ -29,16 +44,21 @@ export function Book({ leftContent, rightContent }: BookProps) {
                     });
 
                     setCaptureImage(canvas.toDataURL('image/png'));
-                    confirmTear(); // Signal store to proceed
+
+                    // Route to correct confirmation
+                    if (visualEffect === 'preparing-tear') confirmTear();
+                    if (visualEffect === 'preparing-flip') confirmFlip();
+
                 } catch (e) {
                     console.error("Capture failed:", e);
-                    confirmTear(); // Proceed anyway
+                    // Force proceed if capture fails
+                    if (visualEffect === 'preparing-tear') confirmTear();
+                    if (visualEffect === 'preparing-flip') confirmFlip();
                 }
             };
-            // Small delay to ensure render cycle
             setTimeout(capture, 50);
         }
-    }, [visualEffect, confirmTear]);
+    }, [visualEffect, confirmTear, confirmFlip]);
 
     // Clear capture when not tearing
     useEffect(() => {
@@ -107,6 +127,60 @@ export function Book({ leftContent, rightContent }: BookProps) {
                                 opacity: 0.8
                             }}
                         />
+                    </div>
+                </>
+            )}
+
+            {/* OVERLAYS (Only visible during flipping) */}
+            {visualEffect === 'flipping' && captureImage && (
+                <>
+                    {/* 1. Static Old Left Page (Maintains context until covered) */}
+                    <div
+                        className="absolute top-0 left-0 h-full w-1/2 z-40 pointer-events-none"
+                    >
+                        <div className="w-full h-full" style={{
+                            backgroundImage: `url(${captureImage})`,
+                            backgroundSize: '200% 100%',
+                            backgroundPosition: 'left top'
+                        }} />
+                        {/* Static Shadow on Left Page */}
+                        <div className="absolute right-0 top-0 bottom-0 w-12 bg-gradient-to-l from-black/10 to-transparent" />
+                    </div>
+
+                    {/* 2. Flipping Page (Old Right Page -> Turns Left) */}
+                    <div
+                        className="absolute top-0 right-0 h-full w-1/2 z-50 pointer-events-none animate-page-flip shadow-2xl"
+                        style={{
+                            left: '50%',
+                            transformOrigin: 'left center',
+                            perspective: '2000px'
+                        }}
+                    >
+                        {/* Front Face (Old Right Content) */}
+                        <div className="absolute inset-0 w-full h-full backface-hidden" style={{
+                            backgroundImage: `url(${captureImage})`,
+                            backgroundSize: '200% 100%',
+                            backgroundPosition: 'right top',
+                            backfaceVisibility: 'hidden',
+                            backgroundColor: '#f7f3e8' // Paper color fallback
+                        }} >
+                            {/* Inner shadow for curvature - LIGHTER */}
+                            <div className="absolute left-0 top-0 bottom-0 w-8 bg-gradient-to-r from-black/5 to-transparent" />
+                        </div>
+
+                        {/* Back Face (The side seen after flipping) 
+                            Ideally this should be the New Left Page, but we don't have it captured.
+                            We'll make it a generic paper texture for now. 
+                        */}
+                        <div className="absolute inset-0 w-full h-full" style={{
+                            transform: 'rotateY(180deg)',
+                            backfaceVisibility: 'hidden',
+                            backgroundColor: '#fdfbf7',
+                            backgroundImage: `url('https://www.transparenttextures.com/patterns/paper.png')`, // Optional texture
+                        }}>
+                            {/* Reverse shadow - LIGHTER */}
+                            <div className="absolute right-0 top-0 bottom-0 w-12 bg-gradient-to-l from-black/5 to-transparent" />
+                        </div>
                     </div>
                 </>
             )}

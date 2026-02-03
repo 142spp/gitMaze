@@ -15,7 +15,7 @@ interface GameState {
     terminalHistory: string[];
 
     // UI Effects
-    visualEffect: 'none' | 'preparing' | 'tearing';
+    visualEffect: 'none' | 'preparing-tear' | 'preparing-flip' | 'tearing' | 'flipping';
     pendingResetAction: (() => void) | null;
 
     // Actions
@@ -24,10 +24,16 @@ interface GameState {
     movePlayer: (dx: number, dz: number) => void;
     addLog: (log: string) => void;
 
-    // Tearing Flow
+    // Tearing Flow (Reset)
     requestTear: (action: () => void) => void;
     confirmTear: () => void;
     finishTear: () => void;
+
+    // Flipping Flow (Checkout)
+    requestFlip: (action: () => void) => void;
+    confirmFlip: () => void;
+    finishFlip: () => void;
+
 
     // Internal Actions
     syncToBackend: () => Promise<void>;
@@ -77,13 +83,16 @@ export const useGameStore = create<GameState>((set, get) => {
         addLog: (log: string) => set((state) => ({ terminalHistory: [...state.terminalHistory, log] })),
 
         requestTear: (action) => {
-            set({ visualEffect: 'preparing', pendingResetAction: action });
+            set({ visualEffect: 'preparing-tear', pendingResetAction: action });
         },
 
         confirmTear: () => {
+            // Only confirm if we are actually preparing for tear
+            if (get().visualEffect !== 'preparing-tear') return;
+
             const { pendingResetAction } = get();
             if (pendingResetAction) {
-                pendingResetAction(); // Executing: newState = git.reset(...) -> set(newState)
+                pendingResetAction();
                 set({ visualEffect: 'tearing', pendingResetAction: null });
 
                 // Cleanup after animation
@@ -94,6 +103,29 @@ export const useGameStore = create<GameState>((set, get) => {
         },
 
         finishTear: () => set({ visualEffect: 'none' }),
+
+        // Page Flip Logic
+        requestFlip: (action) => {
+            set({ visualEffect: 'preparing-flip', pendingResetAction: action });
+        },
+
+        confirmFlip: () => {
+            // Only confirm if we are actually preparing for flip
+            if (get().visualEffect !== 'preparing-flip') return;
+
+            const { pendingResetAction } = get();
+            if (pendingResetAction) {
+                pendingResetAction();
+                set({ visualEffect: 'flipping', pendingResetAction: null });
+
+                // Cleanup
+                setTimeout(() => {
+                    set({ visualEffect: 'none' });
+                }, 1600); // Flip duration (1.5s + buffer)
+            }
+        },
+
+        finishFlip: () => set({ visualEffect: 'none' }),
 
         initialize: async () => {
             const { userId, addLog } = get();
@@ -245,11 +277,13 @@ export const useGameStore = create<GameState>((set, get) => {
                         shouldSync = true;
                     }
 
-                    const newState = git.checkout(target);
-                    set({ currentMaze: newState });
-                    addLog(`Switched to '${target}'`);
-                    // Note: Checkout changes HEAD, so we should sync
-                    shouldSync = true;
+                    // Use Page Flip Effect
+                    get().requestFlip(() => {
+                        const newState = git.checkout(target);
+                        set({ currentMaze: newState });
+                        addLog(`Switched to '${target}'`);
+                        get().syncToBackend();
+                    });
                 }
                 else if (parts[0] === 'git' && parts[1] === 'commit') {
                     const msgMatch = cmd.match(/"([^"]+)"/);
