@@ -92,7 +92,7 @@ export const MainScene: React.FC = () => {
 
                     {/* Inner 3D Content (Flipped aspect ratio to be shorter) */}
                     <div className="w-full aspect-[3/2] bg-[#f0ebe6] rounded overflow-hidden relative border border-gray-200">
-                        <Canvas shadows>
+                        <Canvas shadows gl={{ preserveDrawingBuffer: true }}>
                             <PerspectiveCamera makeDefault position={[6, 15, 15]} fov={40} />
                             <CameraFollower />
                             <ambientLight intensity={0.7} />

@@ -14,15 +14,28 @@ interface GameState {
     currentMaze: MazeState;
     terminalHistory: string[];
 
+    // UI Effects
+    visualEffect: 'none' | 'preparing' | 'tearing';
+    pendingResetAction: (() => void) | null;
+
     // Actions
     initialize: () => Promise<void>;
     sendCommand: (cmd: string) => Promise<void>;
     movePlayer: (dx: number, dz: number) => void;
     addLog: (log: string) => void;
 
+    // Tearing Flow
+    requestTear: (action: () => void) => void;
+    confirmTear: () => void;
+    finishTear: () => void;
+
     // Internal Actions
     syncToBackend: () => Promise<void>;
 }
+
+// ... (getUserId and INITIAL_PLACEHOLDER remain same)
+
+
 
 // Check localStorage for existing userId
 const getUserId = () => {
@@ -58,8 +71,29 @@ export const useGameStore = create<GameState>((set, get) => {
         git,
         currentMaze: INITIAL_PLACEHOLDER,
         terminalHistory: ['Welcome to gitMaze.', 'Initializing system...'],
+        visualEffect: 'none',
+        pendingResetAction: null,
 
         addLog: (log: string) => set((state) => ({ terminalHistory: [...state.terminalHistory, log] })),
+
+        requestTear: (action) => {
+            set({ visualEffect: 'preparing', pendingResetAction: action });
+        },
+
+        confirmTear: () => {
+            const { pendingResetAction } = get();
+            if (pendingResetAction) {
+                pendingResetAction(); // Executing: newState = git.reset(...) -> set(newState)
+                set({ visualEffect: 'tearing', pendingResetAction: null });
+
+                // Cleanup after animation
+                setTimeout(() => {
+                    set({ visualEffect: 'none' });
+                }, 1000);
+            }
+        },
+
+        finishTear: () => set({ visualEffect: 'none' }),
 
         initialize: async () => {
             const { userId, addLog } = get();
@@ -237,10 +271,14 @@ export const useGameStore = create<GameState>((set, get) => {
                     const mode = parts.includes('--hard') ? 'hard' : 'soft';
                     const target = parts.find(p => !p.startsWith('--') && p !== 'git' && p !== 'reset') || 'HEAD';
 
-                    const newState = git.reset(target, mode, get().currentMaze);
-                    set({ currentMaze: newState });
-                    addLog(`Reset to ${target} (${mode})`);
-                    shouldSync = true;
+                    // Capture current state by requesting tear
+                    get().requestTear(() => {
+                        const newState = git.reset(target, mode, get().currentMaze);
+                        set({ currentMaze: newState });
+                        addLog(`Reset to ${target} (${mode})`);
+                        // Explicitly sync inside the callback
+                        get().syncToBackend();
+                    });
                 }
                 else if (parts[0] === 'git' && parts[1] === 'push') {
                     await syncToBackend();

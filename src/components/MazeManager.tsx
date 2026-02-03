@@ -55,6 +55,12 @@ export const MazeManager: React.FC = () => {
             walls.forEach((wall) => {
                 if (wall.opened) return; // Skip opened walls (doors)
 
+                // Skip Outer Walls (Boundary)
+                // Vertical walls at x=0 or x=width
+                if (wall.type === 'VERTICAL' && (wall.startX === 0 || wall.startX === width)) return;
+                // Horizontal walls at z=0 or z=height
+                if (wall.type === 'HORIZONTAL' && (wall.startZ === 0 || wall.startZ === height)) return;
+
                 // Calculate center position
                 // Logic: (startX + endX) / 2, (startZ + endZ) / 2
                 const cx = (wall.startX + wall.endX) / 2;
@@ -72,7 +78,7 @@ export const MazeManager: React.FC = () => {
                     tempObject.rotation.set(0, 0, 0)
                 }
 
-                tempObject.scale.set(0.2, 1.5, 1.1) // Thickness, Height, Length
+                tempObject.scale.set(0.2, 0.9, 1.1) // Thickness, Height, Length
                 tempObject.updateMatrix()
 
                 wallRef.current!.setMatrixAt(activeWallIndex, tempObject.matrix)

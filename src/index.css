@@ -56,4 +56,48 @@
   .clip-path-pencil {
     clip-path: polygon(0 50%, 100% 0, 100% 100%);
   }
+
+  /* Advanced Tearing with Curl */
+  @keyframes tear-curl-left {
+    0% {
+      transform: rotate(0deg);
+    }
+
+    20% {
+      transform: rotate(-2deg);
+    }
+
+    100% {
+      transform: rotate(-5deg);
+      opacity: 1;
+    }
+  }
+
+  @keyframes tear-curl-right {
+    0% {
+      transform: translate3d(0, 0, 0) rotate3d(0, 0, 0, 0deg);
+      opacity: 1;
+    }
+
+    100% {
+      /* Moves down and right, curling inward */
+      transform: translate3d(50px, 800px, 100px) rotate3d(1, 1, 0, 60deg);
+      opacity: 0;
+    }
+  }
+
+  .animate-tear-left {
+    /* Left side stays mostly put but recoils slightly */
+    animation: tear-curl-left 1.2s cubic-bezier(0.25, 1, 0.5, 1) forwards;
+    transform-origin: bottom right;
+  }
+
+  .animate-tear-right {
+    /* Right side curls and falls heavily */
+    animation: tear-curl-right 1.5s ease-in forwards;
+    transform-origin: top left;
+    transform-style: preserve-3d;
+    backface-visibility: hidden;
+    /* Or visible depending on effect */
+  }
 }
