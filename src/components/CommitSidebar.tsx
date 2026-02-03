@@ -1,4 +1,4 @@
-import React, { useMemo, useCallback } from 'react';
+import React, { useMemo, useCallback, useRef, useEffect } from 'react';
 import {
     ReactFlow,
     Background,
@@ -44,6 +44,7 @@ const CommitEdge = ({
     });
 
     const edgeColor = (data as any)?.color || '#e2e8f0';
+    const isNew = (data as any)?.isNew;
 
     return (
         <g>
@@ -54,7 +55,7 @@ const CommitEdge = ({
                 stroke={edgeColor}
                 strokeWidth={1.5}
                 opacity={0.6}
-                initial={{ pathLength: 0, opacity: 0 }}
+                initial={isNew ? { pathLength: 0, opacity: 0 } : false}
                 animate={{ pathLength: 1, opacity: 0.6 }}
                 transition={{ duration: 0.8, ease: "easeOut" }}
                 style={style}
@@ -78,16 +79,21 @@ export const CommitSidebar: React.FC = () => {
 
     const graph = git.getGraph();
     const headCommitId = git.getCurrentCommitId();
+    const seenIds = useRef<Set<string>>(new Set());
 
     const { nodes, edges } = useMemo(() => {
         const layout = calculateLayout(graph);
         const commitToLane = new Map(layout.map(l => [l.id, l.lane]));
+        const currentSeen = new Set<string>();
 
         const rfNodes: Node[] = layout.map(node => {
             const commit = graph.commits.get(node.id);
             const branches = Array.from(graph.branches.entries())
                 .filter(([_, cid]) => cid === node.id)
                 .map(([name]) => name);
+
+            const isNew = !seenIds.current.has(node.id);
+            currentSeen.add(node.id);
 
             return {
                 id: node.id,
@@ -100,7 +106,8 @@ export const CommitSidebar: React.FC = () => {
                     message: commit?.message,
                     isHead: node.id === headCommitId,
                     branches: branches,
-                    themeColor: BRANCH_COLORS[node.lane % BRANCH_COLORS.length]
+                    themeColor: BRANCH_COLORS[node.lane % BRANCH_COLORS.length],
+                    isNew,
                 },
             };
         });
@@ -108,15 +115,20 @@ export const CommitSidebar: React.FC = () => {
         const rfEdges: Edge[] = [];
         graph.commits.forEach(commit => {
             commit.parents.forEach(parentId => {
-                const lane = commitToLane.get(commit.id) ?? 0;
+                const lane = commitToLane.get(commit.id) ?? 0; // Use child's lane for the edge color
+                const edgeId = `${parentId}-${commit.id}`;
+                const isNew = !seenIds.current.has(edgeId);
+                currentSeen.add(edgeId);
+
                 rfEdges.push({
-                    id: `${parentId}-${commit.id}`,
+                    id: edgeId,
                     source: parentId,
                     target: commit.id,
                     type: 'commitEdge',
                     focusable: false,
                     data: {
-                        color: BRANCH_COLORS[lane % BRANCH_COLORS.length]
+                        color: BRANCH_COLORS[lane % BRANCH_COLORS.length],
+                        isNew,
                     }
                 });
             });
@@ -124,6 +136,11 @@ export const CommitSidebar: React.FC = () => {
 
         return { nodes: rfNodes, edges: rfEdges };
     }, [graph, headCommitId, Array.from(graph.branches.keys()).join(',')]);
+
+    useEffect(() => {
+        nodes.forEach(n => seenIds.current.add(n.id));
+        edges.forEach(e => seenIds.current.add(e.id));
+    }, [nodes, edges]);
 
     const onNodeClick = useCallback((_: any, node: any) => {
         try {

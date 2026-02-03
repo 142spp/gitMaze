@@ -9,6 +9,7 @@ interface CommitNodeProps {
         isHead: boolean;
         branches?: string[];
         themeColor?: string;
+        isNew?: boolean;
     };
 }
 
@@ -23,7 +24,7 @@ export const CommitNode = memo(({ data }: CommitNodeProps) => {
             <div className="relative w-2 h-2 flex items-center justify-center">
                 {/* The Central Circle */}
                 <motion.div
-                    initial={{ scale: 0 }}
+                    initial={data.isNew ? { scale: 0 } : false}
                     animate={{ scale: 1 }}
                     transition={{ type: 'spring', stiffness: 260, damping: 20 }}
                     className={`w-2 h-2 rounded-full border-[1px] transition-all duration-300 z-10 shadow-[0_0_8px_rgba(0,0,0,0.3)]
@@ -41,13 +42,15 @@ export const CommitNode = memo(({ data }: CommitNodeProps) => {
 
                 {/* Detailed Commit Info Card - Figma Inspired */}
                 <motion.div
-                    initial={{ opacity: 0, x: 10 }}
+                    initial={data.isNew ? { opacity: 0, x: 10 } : false}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: 0.2 }}
-                    className="absolute left-4 top-[-5px] w-40 pointer-events-auto cursor-pointer select-none py-1"
+                    className="absolute left-3 top-[-5px] w-40 pointer-events-auto cursor-pointer select-none py-1 flex flex-col gap-0.5"
                 >
-                    <div className="flex items-center gap-1.5 mb-0.5">
+                    <div className="flex items-center gap-1.5">
                         <span className="text-[7px] font-black text-slate-500 font-mono tracking-tighter">#{data.id.substring(0, 6).toUpperCase()}</span>
+                    </div>
+                    <div className="flex flex-wrap gap-1">
                         {data.branches?.map(branch => (
                             <span key={branch} className="px-1 py-0.2 rounded-[1px] text-[6px] font-black uppercase text-white shadow-sm"
                                 style={{ backgroundColor: color }}>

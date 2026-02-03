@@ -132,13 +132,47 @@ export class GitEngine {
     }
 
     /**
-     * merge(targetBranch)
+     * merge(targetBranch): 차원 융합 (Dimension Fusion)
      */
     merge(targetBranch: string): string {
         if (!this.graph.branches.has(targetBranch)) {
             throw new Error(`Target branch '${targetBranch}' not found.`);
         }
-        return `Merging ${targetBranch} into ${this.graph.HEAD.ref}. Dimension fusion is currently unstable.`;
+
+        const targetCommitId = this.graph.branches.get(targetBranch)!;
+        const sourceCommitId = this.getCurrentCommitId();
+
+        if (!sourceCommitId) {
+            throw new Error('Cannot merge from empty state');
+        }
+
+        if (targetCommitId === sourceCommitId) {
+            return 'Already up to date.';
+        }
+
+        // Create a merge commit
+        const currentBranch = this.graph.HEAD.type === 'branch' ? this.graph.HEAD.ref : 'detached';
+        const newCommit: CommitNode = {
+            id: this.generateHash(),
+            message: `Merge branch '${targetBranch}' into ${currentBranch}`,
+            parents: [sourceCommitId, targetCommitId],
+            timestamp: Date.now(),
+            snapshot: this.cloneState(this.graph.commits.get(sourceCommitId)!.snapshot),
+        };
+
+        this.graph.commits.set(newCommit.id, newCommit);
+
+        // Update current branch/HEAD
+        if (this.graph.HEAD.type === 'branch') {
+            this.graph.branches.set(this.graph.HEAD.ref, newCommit.id);
+        } else {
+            this.graph.HEAD.ref = newCommit.id;
+        }
+
+        // Delete target branch after successful merge
+        this.graph.branches.delete(targetBranch);
+
+        return `Merged '${targetBranch}' into ${currentBranch} and removed '${targetBranch}'.`;
     }
 
     /**

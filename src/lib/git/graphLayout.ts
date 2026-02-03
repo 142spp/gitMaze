@@ -74,15 +74,20 @@ export function calculateLayout(graph: GitGraph) {
         usedLanesAtDepth.get(depth)!.add(assignedLane);
     });
 
-    // 3. Create nodes with updated spacing
+    // 3. Create nodes with updated spacing and jitter
     sortedCommits.forEach((commit) => {
         const lane = commitLanes.get(commit.id) ?? 0;
         const depth = depthMap.get(commit.id) ?? 0;
 
+        // Deterministic jitter based on commit ID
+        const hash = commit.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+        const jitterX = ((hash % 10) - 5) * 0.6; // +- 7.5px jitter
+        const jitterY = (((hash >> 2) % 10) - 5) * 0.8; // +- 7.5px jitter
+
         nodes.push({
             id: commit.id,
-            x: lane * 30,
-            y: depth * 40,  // Using depth for Y to allow horizontal alignment
+            x: (lane * 30) + jitterX,
+            y: (depth * 40) + jitterY,
             lane: lane
         });
     });
