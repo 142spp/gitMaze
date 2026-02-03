@@ -17,6 +17,7 @@ interface GameState {
     // Actions
     initialize: () => Promise<void>;
     sendCommand: (cmd: string) => Promise<void>;
+    movePlayer: (dx: number, dz: number) => void;
     addLog: (log: string) => void;
 
     // Internal Actions
@@ -114,6 +115,54 @@ export const useGameStore = create<GameState>((set, get) => {
                 await api.pushDimensions(userId, graphJson);
             } catch (e) {
                 console.error("Failed to sync state", e);
+            }
+        },
+
+        movePlayer: (dx: number, dz: number) => {
+            const { currentMaze } = get();
+            const { playerPosition, walls, width, height } = currentMaze;
+            const newX = playerPosition.x + dx;
+            const newZ = playerPosition.z + dz;
+
+            // 1. Boundary Check
+            if (newX < 0 || newX >= width || newZ < 0 || newZ >= height) return;
+
+            // 2. Wall Collision Check
+            // Check if there is a wall between (currentX, currentZ) and (newX, newZ)
+            // If dx != 0, we are moving horizontally. Check vertical walls at newX (if moving right) or currentX (if moving left)
+            // If dz != 0, we are moving vertically. Check horizontal walls at newZ (if moving down) or currentZ (if moving up)
+
+            const blocked = walls.some(wall => {
+                if (wall.opened) return false;
+
+                // Movement Logic:
+                // Moving Right (dx > 0): Checking Vertical wall at x = newX, z = currentZ
+                // Moving Left  (dx < 0): Checking Vertical wall at x = currentX, z = currentZ
+                // Moving Down  (dz > 0): Checking Horizontal wall at z = newZ, x = currentX
+                // Moving Up    (dz < 0): Checking Horizontal wall at z = currentZ, x = currentX
+
+                if (dx > 0) { // Moving Right -> Check Vertical Wall at newX
+                    return wall.type === 'VERTICAL' && wall.startX === newX && wall.startZ === newZ;
+                }
+                if (dx < 0) { // Moving Left -> Check Vertical Wall at currentX
+                    return wall.type === 'VERTICAL' && wall.startX === playerPosition.x && wall.startZ === playerPosition.z;
+                }
+                if (dz > 0) { // Moving Down -> Check Horizontal Wall at newZ
+                    return wall.type === 'HORIZONTAL' && wall.startZ === newZ && wall.startX === newX;
+                }
+                if (dz < 0) { // Moving Up -> Check Horizontal Wall at currentZ
+                    return wall.type === 'HORIZONTAL' && wall.startZ === playerPosition.z && wall.startX === playerPosition.x;
+                }
+                return false;
+            });
+
+            if (!blocked) {
+                set((state) => ({
+                    currentMaze: {
+                        ...state.currentMaze,
+                        playerPosition: { x: newX, z: newZ }
+                    }
+                }));
             }
         },
 

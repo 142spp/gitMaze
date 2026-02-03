@@ -1,9 +1,38 @@
-import React, { Suspense, useEffect } from 'react'
-import { Canvas } from '@react-three/fiber'
+import React, { Suspense, useEffect, useRef } from 'react'
+import { Canvas, useThree, useFrame } from '@react-three/fiber'
 import { OrbitControls, Grid, PerspectiveCamera } from '@react-three/drei'
 import { Player } from './Player'
 import { MazeManager } from './MazeManager'
 import { useGameStore } from '../store/useGameStore'
+import * as THREE from 'three'
+
+const CameraFollower: React.FC = () => {
+    const currentMaze = useGameStore((state) => state.currentMaze)
+    const playerPos = currentMaze.playerPosition
+    const { camera, gl } = useThree()
+    const controlsRef = useRef<any>(null)
+
+    useFrame((state, delta) => {
+        if (controlsRef.current) {
+            const targetX = playerPos.x + 0.5
+            const targetZ = playerPos.z + 0.5
+
+            controlsRef.current.target.lerp(new THREE.Vector3(targetX, 0, targetZ), 0.1)
+            controlsRef.current.update()
+        }
+    })
+
+    return (
+        <OrbitControls
+            ref={controlsRef}
+            args={[camera, gl.domElement]}
+            makeDefault
+            enableDamping
+            dampingFactor={0.05}
+            maxPolarAngle={Math.PI / 2 - 0.1}
+        />
+    )
+}
 
 export const MainScene: React.FC = () => {
     const { currentMaze, initialize, isLoading, error } = useGameStore((state) => ({
@@ -54,8 +83,7 @@ export const MainScene: React.FC = () => {
                     <div className="w-full aspect-[3/2] bg-[#f0ebe6] rounded overflow-hidden relative border border-gray-200">
                         <Canvas shadows>
                             <PerspectiveCamera makeDefault position={[6, 15, 15]} fov={40} />
-                            <OrbitControls makeDefault enableDamping dampingFactor={0.05} />
-
+                            <CameraFollower />
                             <ambientLight intensity={0.7} />
                             <directionalLight
                                 position={[10, 20, 10]}
