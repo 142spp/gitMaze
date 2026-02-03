@@ -1,4 +1,4 @@
-import React, { Suspense } from 'react'
+import React, { Suspense, useEffect } from 'react'
 import { Canvas } from '@react-three/fiber'
 import { OrbitControls, Grid, PerspectiveCamera } from '@react-three/drei'
 import { Player } from './Player'
@@ -6,9 +6,39 @@ import { MazeManager } from './MazeManager'
 import { useGameStore } from '../store/useGameStore'
 
 export const MainScene: React.FC = () => {
-    const currentMaze = useGameStore((state) => state.currentMaze)
+    const { currentMaze, initialize, isLoading, error } = useGameStore((state) => ({
+        currentMaze: state.currentMaze,
+        initialize: state.initialize,
+        isLoading: state.isLoading,
+        error: state.error
+    }))
+
+    useEffect(() => {
+        initialize();
+    }, [initialize]);
+
     const playerPosition = currentMaze.playerPosition
     const themeColor = '#2563eb'
+
+    if (isLoading) {
+        return (
+            <div className="w-full h-full flex items-center justify-center">
+                <div className="text-gray-500 font-mono animate-pulse">Initializing Interface...</div>
+            </div>
+        )
+    }
+
+    if (error) {
+        return (
+            <div className="w-full h-full flex items-center justify-center">
+                <div className="text-red-500 font-mono text-center">
+                    <p className="font-bold">CONNECTION FAILED</p>
+                    <p className="text-sm mt-2">{error}</p>
+                    <button onClick={() => window.location.reload()} className="mt-4 px-4 py-2 bg-gray-200 rounded hover:bg-gray-300">Retry</button>
+                </div>
+            </div>
+        )
+    }
 
     return (
         <div className="w-full h-full flex items-center justify-center p-1">
