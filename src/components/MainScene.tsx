@@ -16,8 +16,19 @@ const CameraFollower: React.FC = () => {
         if (controlsRef.current) {
             const targetX = playerPos.x + 0.5
             const targetZ = playerPos.z + 0.5
+            const targetVec = new THREE.Vector3(targetX, 0, targetZ)
 
-            controlsRef.current.target.lerp(new THREE.Vector3(targetX, 0, targetZ), 0.1)
+            // 1. Get current target and offset
+            const prevTarget = controlsRef.current.target.clone()
+
+            // 2. Lerp target to player position
+            controlsRef.current.target.lerp(targetVec, 0.1)
+
+            // 3. Move camera by the same amount the target moved
+            // This ensures we maintain the same viewing angle/distance (no rotation/zoom effect)
+            const targetDelta = controlsRef.current.target.clone().sub(prevTarget)
+            camera.position.add(targetDelta)
+
             controlsRef.current.update()
         }
     })
