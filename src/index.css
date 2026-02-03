@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&family=JetBrains+Mono:wght@400;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&family=JetBrains+Mono:wght@400;700&family=Noto+Sans+KR:wght@100..900&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -46,6 +46,14 @@
   .page-shadow-right {
     @apply absolute left-0 top-0 bottom-0 w-8 bg-gradient-to-r from-black/5 to-transparent pointer-events-none mix-blend-multiply;
   }
+
+  /* xterm.js force font override */
+  .xterm-container .xterm-rows {
+    font-family: 'mononoki Nerd Font', 'Noto Sans KR', sans-serif !important;
+  }
+
+  /* Ensure CJK characters don't get forced into a rigid mono grid by setting a slightly wider character width if needed via xterm options,
+     but here we ensure the font-family is correctly applied at the row level. */
 }
 
 @layer utilities {

@@ -113,21 +113,32 @@ export class GitEngine {
 
     /**
      * 특정 커밋 시점으로 상태를 되돌립니다.
-     * @param target 이동 목표 ('HEAD' 또는 커밋 해시)
+     * @param target 이동 목표 ('HEAD', 'HEAD~n', 또는 커밋 해시)
      * @param mode 'soft' (플레이어 위치 유지) | 'hard' (미로 및 위치 모두 되돌림)
      * @param currentWorldState 리셋 시 유지할 정보(플레이어 위치 등)를 위한 현재 상태
      */
     reset(target: string, mode: 'soft' | 'hard', currentWorldState: MazeState): MazeState {
         let targetCommitId: string | undefined;
 
-        if (target.toUpperCase() === 'HEAD') {
-            targetCommitId = this.getCurrentCommitId() || undefined;
-        } else if (this.graph.commits.has(target)) {
+        // 1. Resolve target to a concrete commit ID
+        if (this.graph.commits.has(target)) {
+            // Specific commit ID
             targetCommitId = target;
+        } else if (target.toUpperCase() === 'HEAD') {
+            targetCommitId = this.getCurrentCommitId() || undefined;
+        } else if (target.toUpperCase().startsWith('HEAD~')) {
+            // HEAD~n syntax
+            const countStr = target.substring(5);
+            const count = parseInt(countStr, 10);
+            if (isNaN(count)) throw new Error(`Invalid reset target: ${target}`);
+
+            targetCommitId = this.resolveRelativeCommit('HEAD', count);
+        } else {
+            throw new Error(`Reset failed: Target '${target}' is not a valid commit or reference.`);
         }
 
         if (!targetCommitId) {
-            throw new Error(`Reset failed: Target '${target}' is not a valid commit.`);
+            throw new Error(`Reset failed: Could not resolve target '${target}'.`);
         }
 
         const targetSnapshot = this.graph.commits.get(targetCommitId)!.snapshot;
@@ -251,6 +262,34 @@ export class GitEngine {
      */
     private cloneState(state: MazeState): MazeState {
         return JSON.parse(JSON.stringify(state));
+    }
+
+    /**
+     * HEAD나 특정 커밋으로부터 n개 전의 부모 커밋 ID를 찾습니다.
+     */
+    private resolveRelativeCommit(startRef: string, count: number): string | undefined {
+        let currentId: string | undefined;
+
+        if (startRef === 'HEAD') {
+            currentId = this.getCurrentCommitId() || undefined;
+        } else if (this.graph.branches.has(startRef)) {
+            currentId = this.graph.branches.get(startRef);
+        } else {
+            currentId = startRef;
+        }
+
+        for (let i = 0; i < count; i++) {
+            if (!currentId) break;
+            const commit = this.graph.commits.get(currentId);
+            if (!commit || commit.parents.length === 0) {
+                currentId = undefined;
+                break;
+            }
+            // Always follow the first parent (standard git behavior for ~)
+            currentId = commit.parents[0];
+        }
+
+        return currentId;
     }
 
     /**

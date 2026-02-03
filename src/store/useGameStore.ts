@@ -14,6 +14,7 @@ interface GameState {
     // Core Engines
     git: GitEngine;
     currentMaze: MazeState;
+    gitVersion: number;
 
     // Actions
     initialize: () => Promise<void>;
@@ -56,6 +57,7 @@ export const useGameStore = create<GameState>((set, get) => {
 
         git,
         currentMaze: INITIAL_PLACEHOLDER,
+        gitVersion: 0,
 
         /**
          * 시스템 초기화: 서버 또는 로컬 스토리지에서 이전 세션을 복구하거나 새로운 미로를 생성합니다.
@@ -75,7 +77,8 @@ export const useGameStore = create<GameState>((set, get) => {
 
                     set({
                         currentMaze: restoredState,
-                        isLoading: false
+                        isLoading: false,
+                        gitVersion: get().gitVersion + 1
                     });
                     addLog('Session restored. Type "help" for commands.');
                 } else {
@@ -88,10 +91,10 @@ export const useGameStore = create<GameState>((set, get) => {
                     set({
                         git: newGit,
                         currentMaze: newGit.getCurrentState(),
-                        isLoading: false
+                        isLoading: false,
+                        gitVersion: get().gitVersion + 1
                     });
 
-                    await get().syncToBackend();
                     addLog('Ready. Type "help" to start.');
                 }
 
@@ -140,6 +143,9 @@ export const useGameStore = create<GameState>((set, get) => {
                 setMaze: (maze) => set({ currentMaze: maze }),
                 syncToBackend
             });
+
+            // Force re-render of components tracking the git engine
+            set({ gitVersion: get().gitVersion + 1 });
         }
     }
 })

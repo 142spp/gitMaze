@@ -10,6 +10,7 @@ export interface LayoutedNode {
 /**
  * calculateLayout: Assigns lanes (X) and vertical positions (Y) to commits.
  * Top-to-Bottom: Oldest at Y=0, Newest at Y=Increasing.
+ * Only processes commits reachable from HEAD or any active branch.
  */
 export function calculateLayout(graph: GitGraph) {
     const nodes: LayoutedNode[] = [];
@@ -30,10 +31,35 @@ export function calculateLayout(graph: GitGraph) {
         return depth;
     };
 
-    // 1. Sort commits by timestamp
-    const sortedCommits = Array.from(graph.commits.values()).sort((a, b) => a.timestamp - b.timestamp);
+    // 0. Reachability Analysis: Only show commits reachable from HEAD or any branch
+    const reachable = new Set<string>();
+    const stack: string[] = [];
 
-    // Pre-calculate depths
+    // Start from HEAD
+    const headCommitId = graph.HEAD.type === 'branch'
+        ? graph.branches.get(graph.HEAD.ref)
+        : graph.HEAD.ref;
+    if (headCommitId) stack.push(headCommitId);
+
+    // Start from all branches
+    graph.branches.forEach(id => stack.push(id));
+
+    while (stack.length > 0) {
+        const id = stack.pop()!;
+        if (reachable.has(id)) continue;
+        const commit = graph.commits.get(id);
+        if (commit) {
+            reachable.add(id);
+            commit.parents.forEach(p => stack.push(p));
+        }
+    }
+
+    // 1. Sort ONLY reachable commits by timestamp
+    const sortedCommits = Array.from(graph.commits.values())
+        .filter(c => reachable.has(c.id))
+        .sort((a, b) => a.timestamp - b.timestamp);
+
+    // Pre-calculate depths for reachable commits
     sortedCommits.forEach(c => getDepth(c.id));
 
     // 2. Assign lanes and depth-based positions
@@ -81,8 +107,8 @@ export function calculateLayout(graph: GitGraph) {
 
         // Deterministic jitter based on commit ID
         const hash = commit.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-        const jitterX = ((hash % 10) - 5) * 0.6; // +- 7.5px jitter
-        const jitterY = (((hash >> 2) % 10) - 5) * 0.8; // +- 7.5px jitter
+        const jitterX = ((hash % 10) - 5) * 0.6; // +- 3px jitter
+        const jitterY = (((hash >> 2) % 10) - 5) * 0.8; // +- 4px jitter
 
         nodes.push({
             id: commit.id,

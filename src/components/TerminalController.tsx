@@ -32,11 +32,11 @@ export const TerminalController: React.FC = () => {
                 cyan: '#4d8b8b',
                 white: '#fdf3e7',
             },
-            fontFamily: "'JetBrains Mono', 'Fira Code', 'Courier New', monospace",
-            fontSize: 12,
+            fontFamily: "'mononoki Nerd Font', 'Noto Sans KR', sans-serif",
+            fontSize: 14,
             allowProposedApi: true,
             lineHeight: 1.4,
-            letterSpacing: 0.5,
+            letterSpacing: -1, // Using integer -1 because xterm.js rounds letterSpacing
         })
 
         const fitAddon = new FitAddon()
@@ -70,11 +70,12 @@ export const TerminalController: React.FC = () => {
         term.writeln('(c) PaperInk Corp. All rights reserved.\r\n')
 
         terminalHistory.forEach(line => {
+            const normalizedLine = line.replace(/\n/g, '\r\n');
             if (line.startsWith('> ')) {
                 term.write(PROMPT)
-                term.writeln(line.substring(2))
+                term.writeln(normalizedLine.substring(2))
             } else {
-                term.writeln(line)
+                term.writeln(normalizedLine)
             }
         })
 
@@ -114,7 +115,7 @@ export const TerminalController: React.FC = () => {
         if (xtermRef.current && terminalHistory.length > 0) {
             const lastLine = terminalHistory[terminalHistory.length - 1]
             if (!lastLine.startsWith('> ')) {
-                xtermRef.current.writeln(lastLine)
+                xtermRef.current.writeln(lastLine.replace(/\n/g, '\r\n'))
                 xtermRef.current.write(PROMPT)
             }
         }
@@ -129,12 +130,12 @@ export const TerminalController: React.FC = () => {
                     <div className="w-3 h-3 rounded-full bg-[#b38b4d] shadow-sm hover:brightness-110" />
                     <div className="w-3 h-3 rounded-full bg-[#4c6444] shadow-sm hover:brightness-110" />
                 </div>
-                <div className="text-[10px] font-mono text-[#fdf3e7]/70 font-bold tracking-wider uppercase">git-maze — diary-bash — 80x24</div>
+                <div className="text-[10px] font-sans text-[#fdf3e7]/70 font-bold tracking-wider uppercase">git-maze — diary-bash — 80x24</div>
                 <div className="w-8" />
             </div>
 
             {/* Terminal Content */}
-            <div className="flex-1 p-2 overflow-hidden bg-[#fdf3e7]">
+            <div className="flex-1 p-2 overflow-hidden bg-[#fdf3e7] xterm-container">
                 <div ref={terminalRef} className="w-full h-full" />
             </div>
 

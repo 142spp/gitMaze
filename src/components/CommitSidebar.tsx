@@ -81,6 +81,7 @@ const edgeTypes = {
 };
 
 export const CommitSidebar: React.FC = () => {
+    const gitVersion = useGameStore((state) => state.gitVersion);
     const git = useGameStore((state) => state.git);
     const setMaze = (newState: any) => useGameStore.setState({ currentMaze: newState });
     const addLog = useTerminalStore((state) => state.addLog);
@@ -145,7 +146,7 @@ export const CommitSidebar: React.FC = () => {
         });
 
         return { nodes: rfNodes, edges: rfEdges };
-    }, [graph, headCommitId, Array.from(graph.branches.keys()).join(',')]);
+    }, [graph, headCommitId, Array.from(graph.branches.keys()).join(','), gitVersion]);
 
     useEffect(() => {
         nodes.forEach(n => seenIds.current.add(n.id));
