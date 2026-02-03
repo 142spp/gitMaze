@@ -1,4 +1,4 @@
-import React, { Suspense } from 'react'
+import React, { Suspense, useEffect } from 'react'
 import { Canvas } from '@react-three/fiber'
 import { OrbitControls, Grid, PerspectiveCamera } from '@react-three/drei'
 import { Player } from './Player'
@@ -6,9 +6,39 @@ import { MazeManager } from './MazeManager'
 import { useGameStore } from '../store/useGameStore'
 
 export const MainScene: React.FC = () => {
-    const currentMaze = useGameStore((state) => state.currentMaze)
+    const { currentMaze, initialize, isLoading, error } = useGameStore((state) => ({
+        currentMaze: state.currentMaze,
+        initialize: state.initialize,
+        isLoading: state.isLoading,
+        error: state.error
+    }))
+
+    useEffect(() => {
+        initialize();
+    }, [initialize]);
+
     const playerPosition = currentMaze.playerPosition
     const themeColor = '#2563eb'
+
+    if (isLoading) {
+        return (
+            <div className="w-full h-full flex items-center justify-center">
+                <div className="text-gray-500 font-mono animate-pulse">Initializing Interface...</div>
+            </div>
+        )
+    }
+
+    if (error) {
+        return (
+            <div className="w-full h-full flex items-center justify-center">
+                <div className="text-red-500 font-mono text-center">
+                    <p className="font-bold">CONNECTION FAILED</p>
+                    <p className="text-sm mt-2">{error}</p>
+                    <button onClick={() => window.location.reload()} className="mt-4 px-4 py-2 bg-gray-200 rounded hover:bg-gray-300">Retry</button>
+                </div>
+            </div>
+        )
+    }
 
     return (
         <div className="w-full h-full flex items-center justify-center p-1">
@@ -58,19 +88,17 @@ export const MainScene: React.FC = () => {
                     </div>
 
                     {/* Polaroid Footer Text */}
-                    <div className="absolute bottom-4 left-0 right-0 text-center">
-                        <span className="font-mono text-[10px] text-gray-400 font-bold uppercase tracking-[0.4em] opacity-40">
-                            captured_state: {playerPosition.x.toFixed(0)},{playerPosition.y.toFixed(0)}
-                        </span>
-                    </div>
+                    <span className="font-mono text-[10px] text-gray-400 font-bold uppercase tracking-[0.4em] opacity-40">
+                        captured_state: {playerPosition.x.toFixed(0)},{playerPosition.z.toFixed(0)}
+                    </span>
                 </div>
+            </div>
 
-                {/* HUD Overlay (Matches Reference) */}
-                <div className="absolute -top-4 -left-4 pointer-events-none select-none z-30 font-mono">
-                    <div className="bg-white/90 backdrop-blur-[2px] p-2.5 rounded-lg shadow-sm border border-gray-100 rotate-[-4deg]">
-                        <p className="text-[10px] font-black text-gray-400 mb-0.5">POS ({playerPosition.x.toFixed(0)},{playerPosition.y.toFixed(0)})</p>
-                        <p className="text-[11px] font-black text-gray-600">ARROW KEYS TO MOVE</p>
-                    </div>
+            {/* HUD Overlay (Matches Reference) */}
+            <div className="absolute -top-4 -left-4 pointer-events-none select-none z-30 font-mono">
+                <div className="bg-white/90 backdrop-blur-[2px] p-2.5 rounded-lg shadow-sm border border-gray-100 rotate-[-4deg]">
+                    <p className="text-[10px] font-black text-gray-400 mb-0.5">POS ({playerPosition.x.toFixed(0)},{playerPosition.z.toFixed(0)})</p>
+                    <p className="text-[11px] font-black text-gray-600">ARROW KEYS TO MOVE</p>
                 </div>
             </div>
         </div>
