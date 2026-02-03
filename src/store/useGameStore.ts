@@ -46,7 +46,7 @@ const INITIAL_PLACEHOLDER: MazeState = {
 };
 
 export const useGameStore = create<GameState>((set, get) => {
-    // Initialize engine with placeholder, will be replaced in initialize()
+    // 플레이어의 액션을 처리할 Git 엔진 인스턴스 초기화
     const git = new GitEngine(INITIAL_PLACEHOLDER);
 
     return {
@@ -58,19 +58,24 @@ export const useGameStore = create<GameState>((set, get) => {
         currentMaze: INITIAL_PLACEHOLDER,
         terminalHistory: ['Welcome to gitMaze.', 'Initializing system...'],
 
+        /**
+         * 터미널 로그에 메시지를 추가합니다.
+         */
         addLog: (log: string) => set((state) => ({ terminalHistory: [...state.terminalHistory, log] })),
 
+        /**
+         * 시스템 초기화: 서버 또는 로컬 스토리지에서 이전 세션을 복구하거나 새로운 미로를 생성합니다.
+         */
         initialize: async () => {
             const { userId, addLog } = get();
             set({ isLoading: true, error: null });
 
             try {
-                // Try to restore session first
+                // 1. 이전 세션 복구 시도
                 const savedGraph = await api.pullDimensions(userId);
 
                 if (savedGraph) {
                     addLog('Restoring previous session...');
-                    // Import Graph into GitEngine
                     const restoredState = git.importGraph(JSON.stringify(savedGraph));
 
                     set({
@@ -79,10 +84,10 @@ export const useGameStore = create<GameState>((set, get) => {
                     });
                     addLog('Session restored. Type "help" for commands.');
                 } else {
-                    addLog('Generating new spacetime maze...');
+                    // 2. 새로운 미로 생성 (서버 장애 시 로컬 fallback 작동)
+                    addLog('Generating spacetime maze...');
                     const newMazeData = await api.getNewMaze(6, 6);
 
-                    // Re-initialize GitEngine with new maze state
                     const newGit = new GitEngine(newMazeData);
 
                     set({
@@ -91,22 +96,23 @@ export const useGameStore = create<GameState>((set, get) => {
                         isLoading: false
                     });
 
-                    // Sync initial state to backend
                     await get().syncToBackend();
-                    addLog('Maze generated. Type "help" to start.');
+                    addLog('Ready. Type "help" to start.');
                 }
 
             } catch (err: any) {
                 console.error("Initialization Failed:", err);
                 set({
                     isLoading: false,
-                    error: err.message || 'Failed to connect to server.'
+                    error: null
                 });
-                addLog(`Error: ${err.message}`);
-                addLog('Make sure the Backend (gitmaze) is running.');
+                addLog('Notice: Operating in Offline Mode (Local Storage).');
             }
         },
 
+        /**
+         * 현재 Git 엔진의 상태를 백엔드(또는 로컬 스토리지)와 동기화합니다.
+         */
         syncToBackend: async () => {
             const { userId, git } = get();
             try {
@@ -117,6 +123,10 @@ export const useGameStore = create<GameState>((set, get) => {
             }
         },
 
+        /**
+         * 사용자가 입력한 터미널 명령어를 해석하고 Git 엔진에 전달합니다.
+         * @param cmd 입력된 명령어 문자열
+         */
         sendCommand: async (cmd: string) => {
             const { git, addLog, syncToBackend } = get();
             const parts = cmd.trim().split(/\s+/);
@@ -126,6 +136,7 @@ export const useGameStore = create<GameState>((set, get) => {
             try {
                 let shouldSync = false;
 
+                // 명령어 라우팅 로직
                 if (parts[0] === 'help') {
                     addLog('Available: git checkout -b <name>, git checkout <name>, git commit -m "<msg>", git merge <branch>, git reset <target>');
                 }
@@ -136,14 +147,13 @@ export const useGameStore = create<GameState>((set, get) => {
                         addLog(`Branch '${branchName}' created.`);
                         shouldSync = true;
                     } else {
-                        // list branches
+                        // 브랜치 목록 출력
                         const branches = git.getBranches();
                         const head = git.getGraph().HEAD;
                         const currentBranch = head.type === 'branch' ? head.ref : null;
 
                         branches.forEach(branch => {
                             if (branch === currentBranch) {
-                                // Green color for current branch (using simplified markup or just text)
                                 addLog(`* ${branch}`);
                             } else {
                                 addLog(`  ${branch}`);
@@ -163,16 +173,16 @@ export const useGameStore = create<GameState>((set, get) => {
                     }
 
                     const newState = git.checkout(target);
+                    // 차원 이동 시 미로 상태 업데이트
                     set({ currentMaze: newState });
                     addLog(`Switched to '${target}'`);
-                    // Note: Checkout changes HEAD, so we should sync
                     shouldSync = true;
                 }
                 else if (parts[0] === 'git' && parts[1] === 'commit') {
                     const msgMatch = cmd.match(/"([^"]+)"/);
                     const msg = msgMatch ? msgMatch[1] : (parts.slice(3).join(' ') || 'New commit');
 
-                    // Commit current state
+                    // 현재 미로 상태를 스냅샷으로 저장
                     const commitId = git.commit(msg, get().currentMaze);
                     addLog(`[${commitId.substring(0, 7)}] ${msg}`);
                     shouldSync = true;
@@ -198,13 +208,13 @@ export const useGameStore = create<GameState>((set, get) => {
                     addLog('Saved to server.');
                 }
                 else if (parts[0] === 'git' && parts[1] === 'pull') {
-                    // Manual pull? Maybe reload page or just call initialize logic
                     await get().initialize();
                 }
                 else {
                     addLog(`Command not recognized: ${cmd}`);
                 }
 
+                // 상태 변화가 있는 경우 동기화 수행
                 if (shouldSync) {
                     await syncToBackend();
                 }

@@ -5,7 +5,12 @@ import { Player } from './Player'
 import { MazeManager } from './MazeManager'
 import { useGameStore } from '../store/useGameStore'
 
+/**
+ * MainScene: 게임의 메인 3D 캔버스와 UI 레이아웃을 구성합니다.
+ * React Three Fiber(R3F)를 사용하여 3D 렌더링 루프를 설정합니다.
+ */
 export const MainScene: React.FC = () => {
+    // 렌더링에 필요한 전역 상태 구독
     const { currentMaze, initialize, isLoading, error } = useGameStore((state) => ({
         currentMaze: state.currentMaze,
         initialize: state.initialize,
@@ -13,6 +18,7 @@ export const MainScene: React.FC = () => {
         error: state.error
     }))
 
+    // 컴포넌트 마운트 시 초기화 로직 실행 (세션 복구 또는 새 미로 생성)
     useEffect(() => {
         initialize();
     }, [initialize]);
@@ -20,6 +26,7 @@ export const MainScene: React.FC = () => {
     const playerPosition = currentMaze.playerPosition
     const themeColor = '#2563eb'
 
+    // 로딩 상태 표시
     if (isLoading) {
         return (
             <div className="w-full h-full flex items-center justify-center">
@@ -28,6 +35,7 @@ export const MainScene: React.FC = () => {
         )
     }
 
+    // 에러 발생 시 재시도 UI 표시
     if (error) {
         return (
             <div className="w-full h-full flex items-center justify-center">
@@ -43,19 +51,21 @@ export const MainScene: React.FC = () => {
     return (
         <div className="w-full h-full flex items-center justify-center p-1">
             <div className="relative transform rotate-1 hover:rotate-0 transition-transform duration-300 w-full max-w-[680px]">
-                {/* Polaroid Frame */}
+                {/* 폴라로이드 스타일 프레임 UI */}
                 <div className="bg-white p-4 pb-16 shadow-[0_10px_30px_rgba(0,0,0,0.15)] rounded-sm border border-gray-100 relative">
 
-                    {/* Blue Pins (Decorative) */}
+                    {/* 상단 장식용 핀 */}
                     <div className="absolute -top-3 left-1/2 -translate-x-12 w-4 h-4 rounded-full bg-blue-500 shadow-sm border-2 border-white/50 z-20" />
                     <div className="absolute -top-3 left-1/2 translate-x-12 w-4 h-4 rounded-full bg-blue-500 shadow-sm border-2 border-white/50 z-20" />
 
-                    {/* Inner 3D Content (Flipped aspect ratio to be shorter) */}
+                    {/* 메인 3D 캔버스 영역 */}
                     <div className="w-full aspect-[3/2] bg-[#f0ebe6] rounded overflow-hidden relative border border-gray-200">
                         <Canvas shadows>
+                            {/* 카메라 및 카메라 컨트롤 설정 */}
                             <PerspectiveCamera makeDefault position={[6, 15, 15]} fov={40} />
                             <OrbitControls makeDefault enableDamping dampingFactor={0.05} />
 
+                            {/* 조명 구성 (Ambient + Directional + Point) */}
                             <ambientLight intensity={0.7} />
                             <directionalLight
                                 position={[10, 20, 10]}
@@ -66,8 +76,11 @@ export const MainScene: React.FC = () => {
                             <pointLight position={[-10, 10, -10]} intensity={0.4} color={themeColor} />
 
                             <Suspense fallback={null}>
+                                {/* 플레이어 아바타 */}
                                 <Player />
+                                {/* 미로 지형 관리자 */}
                                 <MazeManager />
+                                {/* 보조 그리드 가이드 */}
                                 <Grid
                                     infiniteGrid
                                     fadeDistance={70}
@@ -80,21 +93,22 @@ export const MainScene: React.FC = () => {
                                 />
                             </Suspense>
 
+                            {/* 대기 효과 (Fog) */}
                             <fog attach="fog" args={['#f0ebe6', 15, 60]} />
                         </Canvas>
 
-                        {/* Reflection highlight */}
+                        {/* 렌즈 하이라이트 효과 */}
                         <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/10 to-transparent pointer-events-none" />
                     </div>
 
-                    {/* Polaroid Footer Text */}
+                    {/* 폴라로이드 하단 텍스트 (현재 위치 등 표시) */}
                     <span className="font-mono text-[10px] text-gray-400 font-bold uppercase tracking-[0.4em] opacity-40">
                         captured_state: {playerPosition.x.toFixed(0)},{playerPosition.z.toFixed(0)}
                     </span>
                 </div>
             </div>
 
-            {/* HUD Overlay (Matches Reference) */}
+            {/* 화면 좌상단 HUD: 현재 정보 및 조작법 */}
             <div className="absolute -top-4 -left-4 pointer-events-none select-none z-30 font-mono">
                 <div className="bg-white/90 backdrop-blur-[2px] p-2.5 rounded-lg shadow-sm border border-gray-100 rotate-[-4deg]">
                     <p className="text-[10px] font-black text-gray-400 mb-0.5">POS ({playerPosition.x.toFixed(0)},{playerPosition.z.toFixed(0)})</p>

@@ -1,16 +1,19 @@
 import { CommitHash, CommitNode, GitGraph, MazeState } from './types';
 
 /**
- * GitEngine: The core logic for managing "Parallel Universes" and "Time Freezes".
+ * GitEngine: 미로의 시공간과 평행 우주를 제어하는 핵심 엔진입니다.
+ * Git의 개념을 활용하여 게임의 상태(미로 구조, 아이템, 플레이어 위치)를 관리합니다.
  */
 export class GitEngine {
     private graph: GitGraph;
 
     /**
-     * init(): 우주의 시작
+     * @constructor
+     * 우주의 시작점(Initial Commit)을 생성합니다.
+     * @param initialState 초기 미로의 상태 (벽, 아이템, 시작 위치 등)
      */
     constructor(initialState: MazeState) {
-        // Ensure player position is normalized
+        // 플레이어 위치가 없는 경우 기본값 설정
         const normalizedState = {
             ...initialState,
             playerPosition: initialState.playerPosition || { x: 0, z: 0 }
@@ -35,7 +38,10 @@ export class GitEngine {
     }
 
     /**
-     * commit(message): 시간의 박제 (Time Freeze)
+     * 현재 미로 상태를 새로운 '커밋'으로 영구 저장합니다. (시간 박제)
+     * @param message 저장할 상태에 대한 설명
+     * @param state 현재 씬(Scene)에서 실시간으로 변화된 미로 데이터
+     * @returns 생성된 커밋의 고유 해시값 (ID)
      */
     commit(message: string, state: MazeState): string {
         const parentId = this.getCurrentCommitId();
@@ -49,9 +55,11 @@ export class GitEngine {
 
         this.graph.commits.set(newCommit.id, newCommit);
 
+        // HEAD가 브랜치를 가리키고 있으면 해당 브랜치를 전진시킴
         if (this.graph.HEAD.type === 'branch') {
             this.graph.branches.set(this.graph.HEAD.ref, newCommit.id);
         } else {
+            // Detached HEAD인 경우 직접 커밋을 가리킴
             this.graph.HEAD.ref = newCommit.id;
         }
 
@@ -59,7 +67,8 @@ export class GitEngine {
     }
 
     /**
-     * branch(name): 평행우주 생성
+     * 새로운 평행 우주(브랜치)를 생성합니다.
+     * @param name 브랜치 이름
      */
     createBranch(name: string): void {
         const currentCommitId = this.getCurrentCommitId();
@@ -70,14 +79,16 @@ export class GitEngine {
     }
 
     /**
-     * getBranches(): 모든 브랜치 목록 반환
+     * 존재하는 모든 차원(브랜치)의 이름을 반환합니다.
      */
     getBranches(): string[] {
         return Array.from(this.graph.branches.keys());
     }
 
     /**
-     * checkout(target): 차원 이동
+     * 지정된 브랜치나 커밋 해시로 차원을 이동합니다. (차원 이동)
+     * @param target 이동할 브랜치 명칭 또는 커밋 해시
+     * @returns 이동한 차원의 미로 상태 데이터
      */
     checkout(target: string): MazeState {
         let commitId: string | undefined;
@@ -98,10 +109,10 @@ export class GitEngine {
     }
 
     /**
-     * reset(target, type, currentWorldState): 그 시점으로 돌아가기
-     * @param target: commit hash or 'HEAD' (simplified)
-     * @param mode: 'soft' or 'hard'
-     * @param currentWorldState: The current state in the active scene
+     * 특정 커밋 시점으로 상태를 되돌립니다.
+     * @param target 이동 목표 ('HEAD' 또는 커밋 해시)
+     * @param mode 'soft' (플레이어 위치 유지) | 'hard' (미로 및 위치 모두 되돌림)
+     * @param currentWorldState 리셋 시 유지할 정보(플레이어 위치 등)를 위한 현재 상태
      */
     reset(target: string, mode: 'soft' | 'hard', currentWorldState: MazeState): MazeState {
         let targetCommitId: string | undefined;
@@ -118,27 +129,27 @@ export class GitEngine {
 
         const targetSnapshot = this.graph.commits.get(targetCommitId)!.snapshot;
 
-        // Update current branch/HEAD pointer to point to this commit
+        // HEAD 포인터 업데이트
         if (this.graph.HEAD.type === 'branch') {
             this.graph.branches.set(this.graph.HEAD.ref, targetCommitId);
         } else {
             this.graph.HEAD.ref = targetCommitId;
         }
 
-        // Prepare the new hydrated state
         const newState = this.cloneState(targetSnapshot);
 
         if (mode === 'soft') {
-            // Soft reset: Keep player position but reset the maze structure/flags
+            // Soft reset: 현재 플레이어의 위치는 유지하고 지형만 바꿈
             newState.playerPosition = { ...currentWorldState.playerPosition };
         }
-        // Hard reset: playerPosition is already revert to the snapshot value
 
         return newState;
     }
 
     /**
-     * merge(targetBranch): 차원 융합 (Dimension Fusion)
+     * 두 평행 우주(브랜치)를 하나로 융합합니다.
+     * @param targetBranch 융합할 대상 브랜치
+     * @returns 융합 결과 메시지
      */
     merge(targetBranch: string): string {
         if (!this.graph.branches.has(targetBranch)) {
@@ -156,7 +167,7 @@ export class GitEngine {
             return 'Already up to date.';
         }
 
-        // Create a merge commit
+        // Merge Commit 생성 (두 부모를 가짐)
         const currentBranch = this.graph.HEAD.type === 'branch' ? this.graph.HEAD.ref : 'detached';
         const newCommit: CommitNode = {
             id: this.generateHash(),
@@ -168,21 +179,20 @@ export class GitEngine {
 
         this.graph.commits.set(newCommit.id, newCommit);
 
-        // Update current branch/HEAD
         if (this.graph.HEAD.type === 'branch') {
             this.graph.branches.set(this.graph.HEAD.ref, newCommit.id);
         } else {
             this.graph.HEAD.ref = newCommit.id;
         }
 
-        // Delete target branch after successful merge
+        // 융합 후 대상 브랜치 삭제 (정리)
         this.graph.branches.delete(targetBranch);
 
         return `Merged '${targetBranch}' into ${currentBranch} and removed '${targetBranch}'.`;
     }
 
     /**
-     * Serialization for PUSH/PULL
+     * 전체 그래프 데이터를 JSON 문자열로 직렬화합니다. (PUSH 용)
      */
     exportGraph(): string {
         const data = {
@@ -194,7 +204,7 @@ export class GitEngine {
     }
 
     /**
-     * Deserialization for PULL
+     * JSON 데이터를 읽어 전체 그래프를 복원합니다. (PULL 용)
      */
     importGraph(json: string): MazeState {
         const data = JSON.parse(json);
@@ -206,6 +216,9 @@ export class GitEngine {
         return this.getCurrentState();
     }
 
+    /**
+     * 현재 활성화된 커밋의 ID를 가져옵니다.
+     */
     getCurrentCommitId(): CommitHash | null {
         if (this.graph.HEAD.type === 'branch') {
             return this.graph.branches.get(this.graph.HEAD.ref) || null;
@@ -213,20 +226,32 @@ export class GitEngine {
         return this.graph.HEAD.ref;
     }
 
+    /**
+     * 현재 HEAD가 가리키는 시점의 미로 상태를 복제하여 반환합니다.
+     */
     getCurrentState(): MazeState {
         const commitId = this.getCurrentCommitId();
         if (!commitId) throw new Error('No current commit');
         return this.cloneState(this.graph.commits.get(commitId)!.snapshot);
     }
 
+    /**
+     * 전체 Git 그래프 객체를 반환합니다.
+     */
     getGraph(): GitGraph {
         return this.graph;
     }
 
+    /**
+     * 상태 객체를 깊은 복사하여 불변성을 유지합니다.
+     */
     private cloneState(state: MazeState): MazeState {
         return JSON.parse(JSON.stringify(state));
     }
 
+    /**
+     * 커밋용 간단한 고유 해시값을 생성합니다.
+     */
     private generateHash(): string {
         return Math.random().toString(16).substring(2, 4);
     }

@@ -7,18 +7,23 @@ import { Wall, Item } from '../lib/git/types'
 const tempObject = new Object3D()
 const tempColor = new Color()
 
+/**
+ * MazeManager: 미로의 지형(바닥, 벽)과 아이템을 렌더링합니다.
+ * 성능 최적화를 위해 InstancedMesh를 사용하여 수백 개의 오브젝트를 단일 Draw Call로 처리합니다.
+ */
 export const MazeManager: React.FC = () => {
+    // 전역 상태에서 현재 차원의 미로 데이터를 가져옵니다.
     const currentMaze = useGameStore((state) => state.currentMaze)
     const { width, height, walls, items } = currentMaze
 
+    // InstancedMesh에 대한 참조 (직접 내부 행렬 변이를 위해 사용)
     const wallRef = useRef<InstancedMesh>(null)
     const floorRef = useRef<InstancedMesh>(null)
     const gemRef = useRef<InstancedMesh>(null)
 
     const themeColor = '#2563eb'
 
-    // Compute Floor Transforms
-    // We create a floor for every 1x1 cell in the width x height grid
+    // 바닥 타일의 위치를 계산 (메모이제이션으로 성능 확보)
     const floorTransforms = useMemo(() => {
         const t: { x: number, z: number }[] = []
         for (let x = 0; x < width; x++) {
@@ -29,18 +34,18 @@ export const MazeManager: React.FC = () => {
         return t
     }, [width, height])
 
+    /**
+     * 지형 업데이트 로직: 미로 데이터가 변경될 때마다 인스턴스 행렬을 갱신합니다.
+     */
     useEffect(() => {
-        // Update Floor Internals
+        // 1. 바닥(Floor) 업데이트
         if (floorRef.current) {
             floorTransforms.forEach((pos, i) => {
-                // Offset by 0.5 to center tiles between integer grid lines (walls)
                 tempObject.position.set(pos.x + 0.5, -0.25, pos.z + 0.5)
-                tempObject.rotation.set(0, 0, 0)
-                tempObject.scale.set(1, 1, 1)
                 tempObject.updateMatrix()
                 floorRef.current!.setMatrixAt(i, tempObject.matrix)
 
-                // Checkerboard pattern or simple color
+                // 체크무늬 패턴 적용
                 const isEven = (pos.x + pos.z) % 2 === 0
                 tempColor.set(isEven ? '#f8fafc' : '#f1f5f9')
                 floorRef.current!.setColorAt(i, tempColor)
@@ -49,45 +54,33 @@ export const MazeManager: React.FC = () => {
             if (floorRef.current.instanceColor) floorRef.current.instanceColor.needsUpdate = true
         }
 
-        // Update Walls
+        // 2. 벽(Wall) 업데이트
         if (wallRef.current) {
             let activeWallIndex = 0;
             walls.forEach((wall) => {
-                if (wall.opened) return; // Skip opened walls (doors)
+                if (wall.opened) return; // 열린 벽(문)은 렌더링하지 않음
 
-                // Calculate center position
-                // Logic: (startX + endX) / 2, (startZ + endZ) / 2
                 const cx = (wall.startX + wall.endX) / 2;
                 const cz = (wall.startZ + wall.endZ) / 2;
-
                 tempObject.position.set(cx, 0.5, cz);
 
-                // Calculate Rotation & Scale
-                // If Type is VERTICAL (extends along Z), rotated 0 (or 180).
-                // If Type is HORIZONTAL (extends along X), rotated 90 degrees.
+                // 벽의 방향에 따라 회전 (HORIZONTAL / VERTICAL)
                 if (wall.type === 'HORIZONTAL') {
                     tempObject.rotation.set(0, Math.PI / 2, 0)
-                    // Length adjustment if ends are far apart, but assuming 1 unit length for now based on JSON
                 } else {
                     tempObject.rotation.set(0, 0, 0)
                 }
 
-                tempObject.scale.set(0.2, 1.5, 1.1) // Thickness, Height, Length
+                tempObject.scale.set(0.2, 1.5, 1.1)
                 tempObject.updateMatrix()
-
                 wallRef.current!.setMatrixAt(activeWallIndex, tempObject.matrix)
 
-                // Active/Inactive color
                 tempColor.set(themeColor)
                 wallRef.current!.setColorAt(activeWallIndex, tempColor)
-
                 activeWallIndex++;
             })
 
-            // Should set count to actual number of visible walls ?
-            // For now, we allocated max size (walls.length) but some are invisible.
-            // InstancedMesh doesn't easily support variable count without strict management.
-            // Strategy: Move unused instances to infinity.
+            // 사용하지 않는 인스턴스는 화면 밖으로 이동
             for (let j = activeWallIndex; j < walls.length; j++) {
                 tempObject.position.set(0, -999, 0)
                 tempObject.updateMatrix()
@@ -98,13 +91,10 @@ export const MazeManager: React.FC = () => {
             if (wallRef.current.instanceColor) wallRef.current.instanceColor.needsUpdate = true
         }
 
-        // Update Items (Gems)
+        // 3. 아이템(Gem) 업데이트
         if (gemRef.current) {
             items.forEach((item, i) => {
-                // Offset by 0.5 to center items in cells
                 tempObject.position.set(item.x + 0.5, 0.5, item.z + 0.5)
-                tempObject.rotation.set(0, 0, 0)
-                tempObject.scale.set(0.3, 0.3, 0.3)
                 tempObject.updateMatrix()
                 gemRef.current!.setMatrixAt(i, tempObject.matrix)
 
@@ -117,17 +107,16 @@ export const MazeManager: React.FC = () => {
 
     }, [width, height, walls, items, floorTransforms])
 
+    /**
+     * 프레임 루프(useFrame): 아이템에 떠 있는 애니메이션 효과를 부여합니다.
+     */
     useFrame((state) => {
-        // Animate Items
         if (gemRef.current) {
             items.forEach((item, i) => {
                 const time = state.clock.elapsedTime
                 const yOffset = Math.sin(time * 2 + i) * 0.1
                 tempObject.position.set(item.x + 0.5, 0.5 + yOffset, item.z + 0.5)
                 tempObject.rotation.y += 0.02
-                tempObject.rotation.z = Math.sin(time) * 0.1
-                tempObject.scale.set(0.3, 0.3, 0.3)
-
                 tempObject.updateMatrix()
                 gemRef.current!.setMatrixAt(i, tempObject.matrix)
             })
@@ -137,19 +126,19 @@ export const MazeManager: React.FC = () => {
 
     return (
         <group>
-            {/* Floors */}
+            {/* 바닥 레이어 */}
             <instancedMesh ref={floorRef} args={[undefined, undefined, width * height]} receiveShadow>
                 <boxGeometry args={[0.95, 0.5, 0.95]} />
                 <meshStandardMaterial color="#f1f5f9" />
             </instancedMesh>
 
-            {/* Walls */}
+            {/* 벽 레이어 */}
             <instancedMesh ref={wallRef} args={[undefined, undefined, walls.length]} castShadow receiveShadow>
                 <boxGeometry args={[1, 1, 1]} />
                 <meshStandardMaterial transparent opacity={0.9} metalness={0.8} roughness={0.2} />
             </instancedMesh>
 
-            {/* Items */}
+            {/* 아이템 레이어 */}
             <instancedMesh ref={gemRef} args={[undefined, undefined, items.length]} castShadow>
                 <octahedronGeometry args={[1, 0]} />
                 <meshStandardMaterial emissive="#f59e0b" emissiveIntensity={1} color="#f59e0b" />
