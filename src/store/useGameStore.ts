@@ -6,7 +6,12 @@ import { api } from '../lib/api'
 interface GameState {
     // Session
     userId: string;
+    gameStatus: 'playing' | 'cleared';
+    startTime: number;
+    commandCount: number;
     isLoading: boolean;
+    isSaving?: boolean;
+    saveError?: string | null;
     error: string | null;
 
     // Core Engines
@@ -21,8 +26,10 @@ interface GameState {
     // Actions
     initialize: () => Promise<void>;
     sendCommand: (cmd: string) => Promise<void>;
+    completeGame: () => Promise<void>;
     movePlayer: (dx: number, dz: number) => void;
     addLog: (log: string) => void;
+
 
     // Tearing Flow (Reset)
     requestTear: (action: () => void) => void;
@@ -71,6 +78,9 @@ export const useGameStore = create<GameState>((set, get) => {
 
     return {
         userId: getUserId(),
+        gameStatus: 'playing',
+        startTime: Date.now(),
+        commandCount: 0,
         isLoading: true,
         error: null,
 
@@ -129,7 +139,7 @@ export const useGameStore = create<GameState>((set, get) => {
 
         initialize: async () => {
             const { userId, addLog } = get();
-            set({ isLoading: true, error: null });
+            set({ isLoading: true, error: null, startTime: Date.now(), commandCount: 0, gameStatus: 'playing' });
 
             try {
                 // Try to restore session first
@@ -229,6 +239,28 @@ export const useGameStore = create<GameState>((set, get) => {
                         playerPosition: { x: newX, z: newZ }
                     }
                 }));
+
+                // Check Win Condition (Reach Bottom-Right)
+                console.log(`Checking Win: Pos(${newX}, ${newZ}) vs Goal(${width - 1}, ${height - 1})`);
+                if (newX === width - 1 && newZ === height - 1) {
+                    console.log("Game Cleared Triggered!");
+                    get().completeGame();
+                }
+            }
+        },
+
+        completeGame: async () => {
+            const { userId, startTime, commandCount } = get();
+            const playTime = Math.floor((Date.now() - startTime) / 1000); // seconds
+
+            set({ gameStatus: 'cleared', isSaving: true, saveError: null });
+
+            try {
+                await api.endGame(userId, commandCount, playTime);
+                set({ isSaving: false });
+            } catch (e) {
+                console.error("Failed to save game result", e);
+                set({ isSaving: false, saveError: "Failed to save result" });
             }
         },
 
@@ -237,6 +269,7 @@ export const useGameStore = create<GameState>((set, get) => {
             const parts = cmd.trim().split(/\s+/);
 
             addLog(`> ${cmd}`);
+            set((state) => ({ commandCount: state.commandCount + 1 }));
 
             try {
                 let shouldSync = false;
