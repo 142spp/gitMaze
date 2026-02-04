@@ -20,25 +20,23 @@ const App: React.FC = () => {
             {/* Blur overlay for the background to make it look soft/dreamy */}
             <div className="absolute inset-0 backdrop-blur-[2px] bg-amber-100/20" />
 
-            <Book>
-                <div className="w-full h-full flex bg-[#fdf3e7]">
-                    {/* Unified Sidebar (Integrated into the one sheet) */}
-                    <div className="w-[280px] h-full relative z-20 shrink-0 border-r border-[#8b5e3c]/30 bg-[#ecdab9]">
-                        <div className="relative z-10 p-5 h-full flex flex-col pt-10">
-                            <div className="bg-[#8b5e3c]/10 rounded-full py-2 px-4 shadow-inner border border-[#8b5e3c]/5 mb-8 w-fit mx-auto">
-                                <span className="text-[10px] font-black text-[#8b5e3c]/60 tracking-[0.2em] flex items-center gap-2">
-                                    <GitBranch className="w-4 h-4 text-[#8b5e3c]" />
-                                    GIT_GRAPH
-                                </span>
-                            </div>
-                            <div className="flex-1 overflow-hidden opacity-90 transition-opacity">
-                                <CommitSidebar />
-                            </div>
+            <Book
+                leftContent={
+                    <div className="w-full h-full relative z-20 flex flex-col pt-10 px-5 bg-[#ecdab9] border-r border-[#8b5e3c]/20">
+                        {/* Sidebar logic */}
+                        <div className="bg-[#8b5e3c]/10 rounded-full py-2 px-4 shadow-inner border border-[#8b5e3c]/5 mb-8 w-fit mx-auto">
+                            <span className="text-[10px] font-black text-[#8b5e3c]/60 tracking-[0.2em] flex items-center gap-2">
+                                <GitBranch className="w-4 h-4 text-[#8b5e3c]" />
+                                GIT_GRAPH
+                            </span>
+                        </div>
+                        <div className="flex-1 overflow-hidden opacity-90 transition-opacity">
+                            <CommitSidebar />
                         </div>
                     </div>
-
-                    {/* Main Content Area */}
-                    <div className="flex-1 relative p-6 flex flex-col min-w-0">
+                }
+                rightContent={
+                    <div className="w-full h-full relative p-6 flex flex-col min-w-0 bg-[#fdf3e7]">
                         {/* Background Decorative Doodles */}
                         <div className="absolute top-1/4 right-1/4 opacity-10 rotate-12 pointer-events-none">
                             <svg width="100" height="100" viewBox="0 0 100 100" className="text-amber-900">
@@ -62,8 +60,8 @@ const App: React.FC = () => {
                             </div>
                         </div>
                     </div>
-                </div>
-            </Book>
+                }
+            />
 
             {/* Decorative Floating UI Buttons (Themed) */}
             <div className="absolute bottom-10 left-10 flex gap-4 z-50">

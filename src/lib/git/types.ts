@@ -27,6 +27,7 @@ export interface Item {
 export interface MazeState {
     width: number;
     height: number;
+    minCommands?: number; // Added for game stats
     walls: Wall[];
     items: Item[];
     startPos: { x: number; y: number } | { x: number; z: number }; // User JSON has startPos.x/z but we use x/y historically, let's normalize to x/z in future or adapt. User JSON said "startPos": { "x": 0, "z": 0 }

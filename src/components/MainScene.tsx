@@ -1,14 +1,50 @@
-import React, { Suspense, useEffect } from 'react'
-import { Canvas } from '@react-three/fiber'
+import React, { Suspense, useEffect, useRef } from 'react'
+import { Canvas, useThree, useFrame } from '@react-three/fiber'
 import { OrbitControls, Grid, PerspectiveCamera } from '@react-three/drei'
 import { Player } from './Player'
 import { MazeManager } from './MazeManager'
 import { useGameStore } from '../store/useGameStore'
+import * as THREE from 'three'
 
-/**
- * MainScene: 게임의 메인 3D 캔버스와 UI 레이아웃을 구성합니다.
- * React Three Fiber(R3F)를 사용하여 3D 렌더링 루프를 설정합니다.
- */
+const CameraFollower: React.FC = () => {
+    const currentMaze = useGameStore((state) => state.currentMaze)
+    const playerPos = currentMaze.playerPosition
+    const { camera, gl } = useThree()
+    const controlsRef = useRef<any>(null)
+
+    useFrame((state, delta) => {
+        if (controlsRef.current) {
+            const targetX = playerPos.x + 0.5
+            const targetZ = playerPos.z + 0.5
+            const targetVec = new THREE.Vector3(targetX, 0, targetZ)
+
+            // 1. Get current target and offset
+            const prevTarget = controlsRef.current.target.clone()
+
+            // 2. Lerp target to player position
+            controlsRef.current.target.lerp(targetVec, 0.1)
+
+            // 3. Move camera by the same amount the target moved
+            // This ensures we maintain the same viewing angle/distance (no rotation/zoom effect)
+            const targetDelta = controlsRef.current.target.clone().sub(prevTarget)
+            camera.position.add(targetDelta)
+
+            controlsRef.current.update()
+        }
+    })
+
+    return (
+        <OrbitControls
+            ref={controlsRef}
+            args={[camera, gl.domElement]}
+            makeDefault
+            enableDamping
+            dampingFactor={0.05}
+            maxPolarAngle={Math.PI / 2 - 0.1}
+        />
+    )
+}
+
 export const MainScene: React.FC = () => {
     // 렌더링에 필요한 전역 상태 구독
     const { currentMaze, initialize, isLoading, error } = useGameStore((state) => ({
@@ -60,12 +96,9 @@ export const MainScene: React.FC = () => {
 
                     {/* 메인 3D 캔버스 영역 */}
                     <div className="w-full aspect-[3/2] bg-[#f0ebe6] rounded overflow-hidden relative border border-gray-200">
-                        <Canvas shadows>
-                            {/* 카메라 및 카메라 컨트롤 설정 */}
+                        <Canvas shadows gl={{ preserveDrawingBuffer: true }}>
                             <PerspectiveCamera makeDefault position={[6, 15, 15]} fov={40} />
-                            <OrbitControls makeDefault enableDamping dampingFactor={0.05} />
-
-                            {/* 조명 구성 (Ambient + Directional + Point) */}
+                            <CameraFollower />
                             <ambientLight intensity={0.7} />
                             <directionalLight
                                 position={[10, 20, 10]}

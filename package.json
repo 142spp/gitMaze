@@ -17,6 +17,7 @@
     "@xyflow/react": "^12.10.0",
     "clsx": "^2.1.0",
     "framer-motion": "^12.29.3",
+    "html2canvas": "^1.4.1",
     "lucide-react": "^0.331.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",

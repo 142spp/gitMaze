@@ -8,7 +8,12 @@ import { CommandHandler } from '../lib/git/CommandHandler'
 interface GameState {
     // Session
     userId: string;
+    gameStatus: 'playing' | 'cleared';
+    startTime: number;
+    commandCount: number;
     isLoading: boolean;
+    isSaving?: boolean;
+    saveError?: string | null;
     error: string | null;
 
     // Core Engines
@@ -16,13 +21,36 @@ interface GameState {
     currentMaze: MazeState;
     gitVersion: number;
 
+    // UI Effects
+    visualEffect: 'none' | 'preparing-tear' | 'preparing-flip' | 'tearing' | 'flipping';
+    pendingResetAction: (() => void) | null;
+
     // Actions
     initialize: () => Promise<void>;
     sendCommand: (cmd: string) => Promise<void>;
+    completeGame: () => Promise<void>;
+    movePlayer: (dx: number, dz: number) => void;
+    addLog: (log: string) => void;
+
+
+    // Tearing Flow (Reset)
+    requestTear: (action: () => void) => void;
+    confirmTear: () => void;
+    finishTear: () => void;
+
+    // Flipping Flow (Checkout)
+    requestFlip: (action: () => void) => void;
+    confirmFlip: () => void;
+    finishFlip: () => void;
+
 
     // Internal Actions
     syncToBackend: () => Promise<void>;
 }
+
+// ... (getUserId and INITIAL_PLACEHOLDER remain same)
+
+
 
 // Check localStorage for existing userId
 const getUserId = () => {
@@ -52,20 +80,68 @@ export const useGameStore = create<GameState>((set, get) => {
 
     return {
         userId: getUserId(),
+        gameStatus: 'playing',
+        startTime: Date.now(),
+        commandCount: 0,
         isLoading: true,
         error: null,
 
         git,
         currentMaze: INITIAL_PLACEHOLDER,
-        gitVersion: 0,
+        terminalHistory: ['Welcome to gitMaze.', 'Initializing system...'],
+        visualEffect: 'none',
+        pendingResetAction: null,
 
-        /**
-         * 시스템 초기화: 서버 또는 로컬 스토리지에서 이전 세션을 복구하거나 새로운 미로를 생성합니다.
-         */
+        addLog: (log: string) => set((state) => ({ terminalHistory: [...state.terminalHistory, log] })),
+
+        requestTear: (action) => {
+            set({ visualEffect: 'preparing-tear', pendingResetAction: action });
+        },
+
+        confirmTear: () => {
+            // Only confirm if we are actually preparing for tear
+            if (get().visualEffect !== 'preparing-tear') return;
+
+            const { pendingResetAction } = get();
+            if (pendingResetAction) {
+                pendingResetAction();
+                set({ visualEffect: 'tearing', pendingResetAction: null });
+
+                // Cleanup after animation
+                setTimeout(() => {
+                    set({ visualEffect: 'none' });
+                }, 1000);
+            }
+        },
+
+        finishTear: () => set({ visualEffect: 'none' }),
+
+        // Page Flip Logic
+        requestFlip: (action) => {
+            set({ visualEffect: 'preparing-flip', pendingResetAction: action });
+        },
+
+        confirmFlip: () => {
+            // Only confirm if we are actually preparing for flip
+            if (get().visualEffect !== 'preparing-flip') return;
+
+            const { pendingResetAction } = get();
+            if (pendingResetAction) {
+                pendingResetAction();
+                set({ visualEffect: 'flipping', pendingResetAction: null });
+
+                // Cleanup
+                setTimeout(() => {
+                    set({ visualEffect: 'none' });
+                }, 1600); // Flip duration (1.5s + buffer)
+            }
+        },
+
+        finishFlip: () => set({ visualEffect: 'none' }),
+
         initialize: async () => {
-            const { userId } = get();
-            const { addLog } = useTerminalStore.getState();
-            set({ isLoading: true, error: null });
+            const { userId, addLog } = get();
+            set({ isLoading: true, error: null, startTime: Date.now(), commandCount: 0, gameStatus: 'playing' });
 
             try {
                 // 1. 이전 세션 복구 시도
@@ -121,10 +197,6 @@ export const useGameStore = create<GameState>((set, get) => {
             }
         },
 
-        /**
-         * 사용자가 입력한 터미널 명령어를 해석하고 Git 엔진에 전달합니다.
-         * @param cmd 입력된 명령어 문자열
-         */
         sendCommand: async (cmd: string) => {
             const { git, syncToBackend, initialize } = get();
             const { addLog } = useTerminalStore.getState();
