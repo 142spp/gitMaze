@@ -8,9 +8,19 @@ export const Minimap: React.FC = () => {
 
     const themeColor = '#2563eb'
 
+    const visitedCells = useGameStore((state) => state.visitedCells)
+    const { width, height, grid } = currentMaze
+
+    // Generate grid based on actual maze dimensions
     const gridCells = useMemo(() => {
-        return Array(64).fill(0).map(() => Math.random() > 0.8)
-    }, [])
+        const cells = []
+        for (let z = 0; z < height; z++) {
+            for (let x = 0; x < width; x++) {
+                cells.push({ x, z })
+            }
+        }
+        return cells
+    }, [width, height])
 
     return (
         <div className="w-full h-full p-4 flex flex-col font-mono relative">
@@ -28,23 +38,55 @@ export const Minimap: React.FC = () => {
                     </div>
                 </div>
 
-                <div className="flex-1 bg-amber-900/5 border border-amber-900/10 relative overflow-hidden rounded-sm">
-                    {/* Grid Pattern */}
+                <div className="flex-1 bg-amber-900/5 border border-amber-900/10 relative overflow-hidden rounded-sm flex items-center justify-center p-2">
+                    {/* Grid Layout Container */}
                     <div
-                        className="absolute inset-0 opacity-10"
-                        style={{ backgroundImage: 'linear-gradient(#000 1px, transparent 1px), linear-gradient(90deg, #000 1px, transparent 1px)', backgroundSize: '15px 15px' }}
-                    />
-
-                    <div
-                        className="absolute w-3 h-3 rounded-full z-20 flex items-center justify-center transition-all duration-300"
+                        className="relative"
                         style={{
-                            backgroundColor: themeColor,
-                            left: `${((playerPosition.x + 5) / 10) * 100}%`,
-                            top: `${((playerPosition.z + 5) / 10) * 100}%`,
-                            transform: 'translate(-50%, -50%)',
+                            display: 'grid',
+                            gridTemplateColumns: `repeat(${width}, 1fr)`,
+                            gap: '1px',
+                            width: '100%',
+                            aspectRatio: `${width}/${height}`
                         }}
                     >
-                        <div className="w-full h-full bg-white rounded-full animate-ping opacity-20" />
+                        {gridCells.map((cell) => {
+                            const isVisited = visitedCells.has(`${cell.x},${cell.z}`)
+                            const tileType = grid && grid[cell.z] ? grid[cell.z][cell.x] : 'void'
+
+                            let bgColor = 'transparent'
+                            if (isVisited) {
+                                if (tileType === 'solid') bgColor = '#d4af37' // Gold/Brown for visited floor
+                                else if (tileType === 'pit') bgColor = '#2c1810' // Dark for pit
+                                else bgColor = 'transparent'
+                            } else {
+                                bgColor = 'rgba(44, 24, 16, 0.05)' // Faint dark for unvisited (Fog)
+                            }
+
+                            // Highlight Start Position always? Maybe not, keep fog logic strict
+                            // if (cell.x === currentMaze.startPos.x && cell.z === currentMaze.startPos.z) bgColor = '#3b82f6'
+
+                            return (
+                                <div
+                                    key={`${cell.x}-${cell.z}`}
+                                    className="w-full h-full rounded-[1px] transition-colors duration-500"
+                                    style={{ backgroundColor: bgColor }}
+                                />
+                            )
+                        })}
+
+                        {/* Player Dot - Absolute positioned relative to grid container */}
+                        <div
+                            className="absolute w-2 h-2 rounded-full z-20 flex items-center justify-center transition-all duration-300 pointer-events-none"
+                            style={{
+                                backgroundColor: themeColor,
+                                left: `${(playerPosition.x / width) * 100 + (100 / width / 2)}%`,
+                                top: `${(playerPosition.z / height) * 100 + (100 / height / 2)}%`,
+                                transform: 'translate(-50%, -50%)',
+                            }}
+                        >
+                            <div className="w-full h-full bg-white rounded-full animate-ping opacity-20" />
+                        </div>
                     </div>
                 </div>
 
@@ -61,4 +103,6 @@ export const Minimap: React.FC = () => {
             </div>
         </div>
     )
+    // End of Component Rendering
+    /* Removing old random grid logic */
 }

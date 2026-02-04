@@ -23,6 +23,7 @@ interface GameState {
     gitVersion: number;
     currentStage: number;
     currentCategory: 'tutorial' | 'main';
+    visitedCells: Set<string>; // "x,z" format
 
     // UI Effects
     visualEffect: 'none' | 'preparing-tear' | 'preparing-flip' | 'tearing' | 'flipping';
@@ -99,9 +100,10 @@ export const useGameStore = create<GameState>((set, get) => {
 
         git,
         currentMaze: INITIAL_PLACEHOLDER,
-        gitVersion: 0,
+        visitedCells: new Set<string>(['0,0']), // Track visited cells for Fog of War
+        gitVersion: 1,
         currentStage: 1,
-        currentCategory: 'main',
+        currentCategory: 'tutorial',
         terminalHistory: ['Welcome to gitMaze.', 'Initializing system...'],
         visualEffect: 'none',
         pendingResetAction: null,
@@ -243,7 +245,8 @@ export const useGameStore = create<GameState>((set, get) => {
                     startTime: Date.now(),
                     commandCount: 0,
                     currentStage: level,
-                    currentCategory: category as 'tutorial' | 'main'
+                    currentCategory: category as 'tutorial' | 'main',
+                    visitedCells: new Set<string>([`${mazeData.startPos.x},${mazeData.startPos.z}`])
                 });
 
                 addLog(`Stage ${category} ${level} ready.`);
@@ -296,7 +299,7 @@ export const useGameStore = create<GameState>((set, get) => {
             // Player Wall Check
             if (isWallBlocking(playerPosition.x, playerPosition.z, dx, dz)) return;
 
-            // 3. Block Pushing Check
+            // 4. Block Pushing Check
             const blockIndex = items.findIndex(item => item.type.startsWith('block_') && item.x === targetX && item.z === targetZ);
             let updatedItems = [...items];
 
@@ -322,50 +325,57 @@ export const useGameStore = create<GameState>((set, get) => {
                 updatedItems[blockIndex] = { ...block, x: nextBlockX, z: nextBlockZ };
             }
 
-            // 4. Update State
             // 5. Pit Check (if player moved to pit, trigger falling animation)
             if (targetFloorType === 'pit') {
-                set({
+                set((state) => {
+                    const newVisited = new Set(state.visitedCells);
+                    newVisited.add(`${targetX},${targetZ}`);
+                    return {
+                        currentMaze: {
+                            ...currentMaze,
+                            playerPosition: { x: targetX, z: targetZ },
+                            items: updatedItems
+                        },
+                        visitedCells: newVisited,
+                        isFalling: true
+                    };
+                });
+                return; // Exit early
+            }
+
+            // 6. Normal Move Update
+            set((state) => {
+                const newVisited = new Set(state.visitedCells);
+                newVisited.add(`${targetX},${targetZ}`);
+                return {
                     currentMaze: {
-                        ...currentMaze,
+                        ...state.currentMaze,
                         playerPosition: { x: targetX, z: targetZ },
                         items: updatedItems
                     },
-                    isFalling: true
+                    visitedCells: newVisited
+                };
+            });
+
+            // 7. Check Win Condition
+            const hasPlates = updatedItems.some(it => it.type.startsWith('plate_'));
+
+            if (hasPlates) {
+                // Puzzle Win: All plates must have matching blocks
+                const plates = updatedItems.filter(it => it.type.startsWith('plate_'));
+                const allSatisfied = plates.every(plate => {
+                    const shape = plate.type.split('_')[1]; // cube, sphere, tetra
+                    return updatedItems.some(it => it.type === `block_${shape}` && it.x === plate.x && it.z === plate.z);
                 });
-                return; // Exit early, Player component will handle reset after animation
-            }
 
-            // Normal move (not pit)
-            set((state) => ({
-                currentMaze: {
-                    ...state.currentMaze,
-                    playerPosition: { x: targetX, z: targetZ },
-                    items: updatedItems
+                if (allSatisfied) {
+                    completeGame();
                 }
-            }));
-
-            // 6. Check Win Condition (only if not on pit)
-            if (targetFloorType !== 'pit') {
-                const hasPlates = updatedItems.some(it => it.type.startsWith('plate_'));
-
-                if (hasPlates) {
-                    // Puzzle Win: All plates must have matching blocks
-                    const plates = updatedItems.filter(it => it.type.startsWith('plate_'));
-                    const allSatisfied = plates.every(plate => {
-                        const shape = plate.type.split('_')[1]; // cube, sphere, tetra
-                        return updatedItems.some(it => it.type === `block_${shape}` && it.x === plate.x && it.z === plate.z);
-                    });
-
-                    if (allSatisfied) {
-                        completeGame();
-                    }
-                } else {
-                    // Classic Win: Collect all stars
-                    const remainingStars = updatedItems.filter(it => it.type === 'star');
-                    if (remainingStars.length === 0) {
-                        completeGame();
-                    }
+            } else {
+                // Classic Win: Collect all stars
+                const remainingStars = updatedItems.filter(it => it.type === 'star');
+                if (remainingStars.length === 0) {
+                    completeGame();
                 }
             }
         },

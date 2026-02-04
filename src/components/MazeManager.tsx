@@ -2,6 +2,7 @@ import React, { useRef, useEffect, useMemo } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { InstancedMesh, Object3D, Color } from 'three'
 import { useGameStore } from '../store/useGameStore'
+import { WorldEnvironment } from './WorldEnvironment'
 
 const tempObject = new Object3D()
 const tempColor = new Color()
@@ -47,15 +48,15 @@ export const MazeManager: React.FC = () => {
         // Solid Floors
         if (floorRef.current) {
             floorTiles.solid.forEach((tile, i) => {
-                tempObject.position.set(tile.x + 0.5, -0.25, tile.z + 0.5);
+                tempObject.position.set(tile.x + 0.5, -1.0, tile.z + 0.5);
                 tempObject.rotation.set(0, 0, 0);
                 tempObject.scale.set(1, 1, 1);
                 tempObject.updateMatrix();
                 floorRef.current!.setMatrixAt(i, tempObject.matrix);
 
-                // Color start position blue
+                // Color start position blue, others Sand/Island color
                 const isStartPos = tile.x === currentMaze.startPos.x && tile.z === currentMaze.startPos.z;
-                tempColor.set(isStartPos ? '#3b82f6' : '#f1f5f9');
+                tempColor.set(isStartPos ? '#3b82f6' : '#fde68a'); // Blue start, Sand others
                 floorRef.current!.setColorAt(i, tempColor);
             });
             for (let j = floorTiles.solid.length; j < width * height; j++) {
@@ -192,10 +193,13 @@ export const MazeManager: React.FC = () => {
 
     return (
         <group>
-            {/* Solid Floors */}
+            {/* World Environment */}
+            <WorldEnvironment mazeWidth={width} mazeHeight={height} />
+
+            {/* Solid Floors - Tall pillars to look like islands rising from sea */}
             <instancedMesh ref={floorRef} args={[undefined, undefined, width * height]} receiveShadow>
-                <boxGeometry args={[0.95, 0.5, 0.95]} />
-                <meshStandardMaterial color="white" />
+                <boxGeometry args={[0.95, 2.0, 0.95]} />
+                <meshStandardMaterial />
             </instancedMesh>
 
             {/* Pits */}
