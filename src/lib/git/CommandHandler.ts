@@ -96,8 +96,8 @@ export class CommandHandler {
                 addLog(result);
             }
             else if (parts[0] === 'git' && parts[1] === 'reset') {
-                const mode = parts.includes('--hard') ? 'hard' : 'soft';
-                const target = parts.find(p => !p.startsWith('--') && p !== 'git' && p !== 'reset') || 'HEAD~1';
+                const mode = parts.includes('--soft') ? 'soft' : 'hard';
+                const target = parts.find(p => !p.startsWith('--') && p !== 'git' && p !== 'reset') || 'HEAD';
 
                 // Use Tear Effect if available
                 if (requestTear) {
