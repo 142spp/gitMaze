@@ -87,10 +87,11 @@ export const CommitSidebar: React.FC = () => {
     const headCommitId = git.getCurrentCommitId();
     const seenIds = useRef<Set<string>>(new Set());
 
-    const { nodes, edges, height } = useMemo(() => {
+    const { nodes, edges, height, width } = useMemo(() => {
         const layout = calculateLayout(graph);
         const currentSeen = new Set<string>();
         let maxDepth = 0;
+        let maxWidth = 0;
 
         const rfNodes: Node[] = layout.map(node => {
             const commit = graph.commits.get(node.id);
@@ -103,6 +104,7 @@ export const CommitSidebar: React.FC = () => {
 
             const commitBranch = (commit as any)?.branch || 'main';
             if (node.y > maxDepth) maxDepth = node.y;
+            if (node.x > maxWidth) maxWidth = node.x;
 
             return {
                 id: node.id,
@@ -144,8 +146,20 @@ export const CommitSidebar: React.FC = () => {
             });
         });
 
-        return { nodes: rfNodes, edges: rfEdges, height: maxDepth + 100 };
+        return { nodes: rfNodes, edges: rfEdges, height: maxDepth + 100, width: maxWidth + 150 };
     }, [graph, headCommitId, Array.from(graph.branches.keys()).join(','), gitVersion]);
+
+    // 동적으로 zoom 계산: 너비가 넓어지면 zoom을 줄여서 모든 노드가 보이도록
+    const dynamicZoom = useMemo(() => {
+        const baseZoom = 2.2;
+        const containerWidth = 300; // CommitSidebar의 대략적인 너비 (px)
+        const requiredWidth = width * baseZoom;
+
+        if (requiredWidth > containerWidth) {
+            return (containerWidth / width) * 0.9; // 약간의 여백을 위해 0.9 곱함
+        }
+        return baseZoom;
+    }, [width]);
 
     useEffect(() => {
         nodes.forEach(n => seenIds.current.add(n.id));
@@ -155,7 +169,7 @@ export const CommitSidebar: React.FC = () => {
     return (
         <div className="h-full bg-transparent flex flex-col font-mono text-[11px]">
             <div className="flex-1 w-full overflow-y-auto overflow-x-hidden custom-scrollbar pr-1">
-                <div style={{ height: `${height * 2.2}px`, width: '100%' }}>
+                <div style={{ height: `${height * dynamicZoom}px`, width: '100%' }}>
                     <ReactFlowProvider>
                         <ReactFlow
                             nodes={nodes}
@@ -173,9 +187,9 @@ export const CommitSidebar: React.FC = () => {
                             selectionOnDrag={false}
                             preventScrolling={false}
                             fitView={false}
-                            minZoom={2.2}
-                            maxZoom={2.2}
-                            defaultViewport={{ x: 30, y: 10, zoom: 2.2 }}
+                            minZoom={dynamicZoom}
+                            maxZoom={dynamicZoom}
+                            defaultViewport={{ x: 30, y: 10, zoom: dynamicZoom }}
                             proOptions={{ hideAttribution: true }}
                         >
                             <Background color="#e6d5c3" gap={20} size={0.5} />
