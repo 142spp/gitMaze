@@ -164,10 +164,10 @@ export const useGameStore = create<GameState>((set, get) => {
             setTimeout(() => {
                 set({ visualEffect: 'flipping' });
 
-                // 3. After flip animation (1500ms), finish
+                // 3. After flip animation (1500ms CSS + 100ms grace), finish
                 setTimeout(() => {
                     set({ visualEffect: 'none' });
-                }, 1500);
+                }, 1600);
             }, 600);
         },
 

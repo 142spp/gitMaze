@@ -125,7 +125,7 @@ export function Book({ leftContent, rightContent, isClosed = false }: BookProps)
 
             {/* LEFT HALF (Always 50% width internally, hidden via opacity when closed) */}
             <div
-                className="w-1/2 h-full relative transition-opacity duration-700 ease-in-out"
+                className="w-1/2 h-full relative"
                 style={{
                     opacity: (isActuallyOpen && !isOpening) ? 1 : 0,
                     pointerEvents: (isActuallyOpen && !isOpening) ? 'auto' : 'none',
@@ -138,7 +138,7 @@ export function Book({ leftContent, rightContent, isClosed = false }: BookProps)
                 </div>
                 {/* Content */}
                 <div className="relative z-20 w-full h-full p-4 pr-0">
-                    <div className="w-full h-full bg-[#f7f3e8] rounded-l-[30px] border border-[#e5dec9] border-r-0 overflow-hidden relative">
+                    <div className="w-full h-full bg-[#f7f3e8] rounded-l-[30px] border border-[#5d4037] border-r-0 overflow-hidden relative">
                         {leftContent}
                         <div className="absolute right-0 top-0 bottom-0 w-12 bg-gradient-to-l from-black/10 to-transparent pointer-events-none" />
                     </div>
@@ -161,7 +161,7 @@ export function Book({ leftContent, rightContent, isClosed = false }: BookProps)
                                 <div className="absolute left-0 top-0 bottom-0 w-6 bg-gradient-to-r from-black/40 to-transparent" />
                             </div>
                             <div className="relative z-20 w-full h-full p-4 pl-0">
-                                <div className="w-full h-full overflow-hidden relative bg-[#f7f3e8] rounded-r-[30px] border border-[#e5dec9] border-l-0">
+                                <div className="w-full h-full overflow-hidden relative bg-[#f7f3e8] rounded-r-[30px] border border-[#5d4037] border-l-0">
                                     {rightContent}
                                     <div className="absolute left-0 top-0 bottom-0 w-12 bg-gradient-to-r from-black/10 to-transparent pointer-events-none z-50" />
                                 </div>
@@ -196,22 +196,33 @@ export function Book({ leftContent, rightContent, isClosed = false }: BookProps)
                             </div>
                         </div>
 
-                        {/* BACK (Inner Paper) */}
+                        {/* BACK (Inner Cover - Brown Leather Frame) */}
                         <div
                             className="absolute inset-0 w-full h-full"
                             style={{
                                 transform: 'rotateY(180deg)',
                                 backfaceVisibility: 'hidden',
-                                backgroundColor: '#f7f3e8',
-                                backgroundImage: `url('https://www.transparenttextures.com/patterns/paper.png')`,
+                                backgroundColor: '#5d4037', // Brown Leather
                                 borderRadius: '40px 10px 10px 40px',
+                                overflow: 'hidden',
                                 display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
+                                flexDirection: 'column'
                             }}
                         >
-                            <div className="absolute inset-0 w-full h-full border border-[#e5dec9] border-r-0 rounded-l-[30px]" />
-                            <div className="absolute right-0 top-0 bottom-0 w-12 bg-gradient-to-l from-black/5 to-transparent shadow-inner" />
+                            <div className="absolute inset-0 opacity-40 pointer-events-none" style={{ backgroundImage: `url('https://www.transparenttextures.com/patterns/leather.png')` }} />
+
+                            {/* Inner Page Paper */}
+                            <div className="relative z-20 w-full h-full p-4 pr-0">
+                                <div className="w-full h-full bg-[#f7f3e8] rounded-l-[30px] border border-[#5d4037] border-r-0 overflow-hidden relative">
+                                    <div className="absolute inset-0 opacity-50 pointer-events-none" style={{ backgroundImage: `url('https://www.transparenttextures.com/patterns/paper.png')` }} />
+                                    <div className="absolute right-0 top-0 bottom-0 w-12 bg-gradient-to-l from-black/5 to-transparent shadow-inner z-30" />
+
+                                    {/* Actual Content Container */}
+                                    <div className="relative z-20 w-full h-full overflow-hidden">
+                                        {leftContent}
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 )}
