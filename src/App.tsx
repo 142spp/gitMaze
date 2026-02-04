@@ -5,9 +5,12 @@ import { CommitSidebar } from './components/CommitSidebar'
 import { Minimap } from './components/Minimap'
 import { Book } from './components/ui/Book'
 import { GitBranch } from 'lucide-react';
+import { useGameStore } from './store/useGameStore';
 
 
 const App: React.FC = () => {
+    const loadTutorial = useGameStore(state => state.loadTutorial);
+
     return (
         <div
             className="min-h-screen w-full flex items-center justify-center p-2 md:p-4 overflow-hidden relative"
@@ -71,6 +74,19 @@ const App: React.FC = () => {
                 <button className="w-12 h-12 bg-[#fdfbf7] rounded-full shadow-xl flex items-center justify-center text-amber-700/60 hover:scale-110 active:scale-95 transition-all border border-amber-100/50">
                     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" /></svg>
                 </button>
+            </div>
+
+            {/* Tutorial Test Buttons (Temporary) */}
+            <div className="absolute top-10 right-10 flex flex-col gap-2 z-50">
+                {[1, 2, 3, 4].map(lv => (
+                    <button
+                        key={lv}
+                        onClick={() => loadTutorial(lv)}
+                        className="px-4 py-2 bg-amber-900/80 text-white rounded-lg shadow-lg hover:bg-amber-800 transition-colors text-xs font-bold"
+                    >
+                        TUTORIAL {lv}
+                    </button>
+                ))}
             </div>
         </div>
     )
