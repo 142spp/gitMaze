@@ -244,56 +244,79 @@ export const useGameStore = create<GameState>((set, get) => {
             }
         },
         movePlayer: (dx: number, dz: number) => {
-            const { currentMaze } = get();
-            const { playerPosition, walls, width, height } = currentMaze;
-            const newX = playerPosition.x + dx;
-            const newZ = playerPosition.z + dz;
+            const { currentMaze, completeGame } = get();
+            const { playerPosition, walls, width, height, items } = currentMaze;
 
-            // 1. Boundary Check
-            if (newX < 0 || newX >= width || newZ < 0 || newZ >= height) return;
+            const targetX = playerPosition.x + dx;
+            const targetZ = playerPosition.z + dz;
 
-            // 2. Wall Collision Check
-            // Check if there is a wall between (currentX, currentZ) and (newX, newZ)
-            // If dx != 0, we are moving horizontally. Check vertical walls at newX (if moving right) or currentX (if moving left)
-            // If dz != 0, we are moving vertically. Check horizontal walls at newZ (if moving down) or currentZ (if moving up)
+            // 1. Boundary Check for Player
+            if (targetX < 0 || targetX >= width || targetZ < 0 || targetZ >= height) return;
 
-            const blocked = walls.some(wall => {
-                if (wall.opened) return false;
+            // 2. Wall Collision Check Function
+            const isWallBlocking = (x: number, z: number, moveDirX: number, moveDirZ: number) => {
+                return walls.some(wall => {
+                    if (wall.opened) return false;
+                    if (moveDirX > 0) return wall.type === 'VERTICAL' && wall.startX === x + 1 && wall.startZ === z;
+                    if (moveDirX < 0) return wall.type === 'VERTICAL' && wall.startX === x && wall.startZ === z;
+                    if (moveDirZ > 0) return wall.type === 'HORIZONTAL' && wall.startZ === z + 1 && wall.startX === x;
+                    if (moveDirZ < 0) return wall.type === 'HORIZONTAL' && wall.startZ === z && wall.startX === x;
+                    return false;
+                });
+            };
 
-                // Movement Logic:
-                // Moving Right (dx > 0): Checking Vertical wall at x = newX, z = currentZ
-                // Moving Left  (dx < 0): Checking Vertical wall at x = currentX, z = currentZ
-                // Moving Down  (dz > 0): Checking Horizontal wall at z = newZ, x = currentX
-                // Moving Up    (dz < 0): Checking Horizontal wall at z = currentZ, x = currentX
+            // Player Wall Check
+            if (isWallBlocking(playerPosition.x, playerPosition.z, dx, dz)) return;
 
-                if (dx > 0) { // Moving Right -> Check Vertical Wall at newX
-                    return wall.type === 'VERTICAL' && wall.startX === newX && wall.startZ === newZ;
+            // 3. Block Pushing Check
+            const blockIndex = items.findIndex(item => item.type.startsWith('block_') && item.x === targetX && item.z === targetZ);
+            let updatedItems = [...items];
+
+            if (blockIndex !== -1) {
+                const block = items[blockIndex];
+                const nextBlockX = block.x + dx;
+                const nextBlockZ = block.z + dz;
+
+                // Block Boundary Check
+                if (nextBlockX < 0 || nextBlockX >= width || nextBlockZ < 0 || nextBlockZ >= height) return;
+
+                // Block Wall Check
+                if (isWallBlocking(block.x, block.z, dx, dz)) return;
+
+                // Block overlapping another block Check
+                if (items.some(it => it.type.startsWith('block_') && it.x === nextBlockX && it.z === nextBlockZ)) return;
+
+                // Move Block
+                updatedItems[blockIndex] = { ...block, x: nextBlockX, z: nextBlockZ };
+            }
+
+            // 4. Update State
+            set((state) => ({
+                currentMaze: {
+                    ...state.currentMaze,
+                    playerPosition: { x: targetX, z: targetZ },
+                    items: updatedItems
                 }
-                if (dx < 0) { // Moving Left -> Check Vertical Wall at currentX
-                    return wall.type === 'VERTICAL' && wall.startX === playerPosition.x && wall.startZ === playerPosition.z;
-                }
-                if (dz > 0) { // Moving Down -> Check Horizontal Wall at newZ
-                    return wall.type === 'HORIZONTAL' && wall.startZ === newZ && wall.startX === newX;
-                }
-                if (dz < 0) { // Moving Up -> Check Horizontal Wall at currentZ
-                    return wall.type === 'HORIZONTAL' && wall.startZ === playerPosition.z && wall.startX === playerPosition.x;
-                }
-                return false;
-            });
+            }));
 
-            if (!blocked) {
-                set((state) => ({
-                    currentMaze: {
-                        ...state.currentMaze,
-                        playerPosition: { x: newX, z: newZ }
-                    }
-                }));
+            // 5. Check Win Condition
+            const hasPlates = updatedItems.some(it => it.type.startsWith('plate_'));
 
-                // Check Win Condition (Reach Bottom-Right)
-                console.log(`Checking Win: Pos(${newX}, ${newZ}) vs Goal(${width - 1}, ${height - 1})`);
-                if (newX === width - 1 && newZ === height - 1) {
-                    console.log("Game Cleared Triggered!");
-                    get().completeGame();
+            if (hasPlates) {
+                // Puzzle Win: All plates must have matching blocks
+                const plates = updatedItems.filter(it => it.type.startsWith('plate_'));
+                const allSatisfied = plates.every(plate => {
+                    const shape = plate.type.split('_')[1]; // cube, sphere, tetra
+                    return updatedItems.some(it => it.type === `block_${shape}` && it.x === plate.x && it.z === plate.z);
+                });
+
+                if (allSatisfied) {
+                    completeGame();
+                }
+            } else {
+                // Classic Win: Reach Bottom-Right
+                if (targetX === width - 1 && targetZ === height - 1) {
+                    completeGame();
                 }
             }
         },

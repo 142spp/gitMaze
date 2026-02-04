@@ -12,18 +12,23 @@ const tempColor = new Color()
  * 성능 최적화를 위해 InstancedMesh를 사용하여 수백 개의 오브젝트를 단일 Draw Call로 처리합니다.
  */
 export const MazeManager: React.FC = () => {
-    // 전역 상태에서 현재 차원의 미로 데이터를 가져옵니다.
     const currentMaze = useGameStore((state) => state.currentMaze)
     const { width, height, walls, items } = currentMaze
 
-    // InstancedMesh에 대한 참조 (직접 내부 행렬 변이를 위해 사용)
     const wallRef = useRef<InstancedMesh>(null)
     const floorRef = useRef<InstancedMesh>(null)
     const gemRef = useRef<InstancedMesh>(null)
 
+    // New Puzzle Refs
+    const cubeBlockRef = useRef<InstancedMesh>(null)
+    const sphereBlockRef = useRef<InstancedMesh>(null)
+    const tetraBlockRef = useRef<InstancedMesh>(null)
+    const cubePlateRef = useRef<InstancedMesh>(null)
+    const spherePlateRef = useRef<InstancedMesh>(null)
+    const tetraPlateRef = useRef<InstancedMesh>(null)
+
     const themeColor = '#2563eb'
 
-    // 바닥 타일의 위치를 계산 (메모이제이션으로 성능 확보)
     const floorTransforms = useMemo(() => {
         const t: { x: number, z: number }[] = []
         for (let x = 0; x < width; x++) {
@@ -34,11 +39,8 @@ export const MazeManager: React.FC = () => {
         return t
     }, [width, height])
 
-    /**
-     * 지형 업데이트 로직: 미로 데이터가 변경될 때마다 인스턴스 행렬을 갱신합니다.
-     */
     useEffect(() => {
-        // 1. 바닥(Floor) 업데이트
+        // 1. Floor
         if (floorRef.current) {
             floorTransforms.forEach((pos, i) => {
                 tempObject.position.set(pos.x + 0.5, -0.25, pos.z + 0.5)
@@ -46,8 +48,6 @@ export const MazeManager: React.FC = () => {
                 tempObject.scale.set(1, 1, 1)
                 tempObject.updateMatrix()
                 floorRef.current!.setMatrixAt(i, tempObject.matrix)
-
-                // 체크무늬 패턴 적용
                 const isEven = (pos.x + pos.z) % 2 === 0
                 tempColor.set(isEven ? '#f8fafc' : '#f1f5f9')
                 floorRef.current!.setColorAt(i, tempColor)
@@ -56,76 +56,104 @@ export const MazeManager: React.FC = () => {
             if (floorRef.current.instanceColor) floorRef.current.instanceColor.needsUpdate = true
         }
 
-        // 2. 벽(Wall) 업데이트
+        // 2. Walls
         if (wallRef.current) {
             let activeWallIndex = 0;
             walls.forEach((wall) => {
                 if (wall.opened) return;
-
                 if (wall.type === 'VERTICAL' && (wall.startX === 0 || wall.startX === width)) return;
                 if (wall.type === 'HORIZONTAL' && (wall.startZ === 0 || wall.startZ === height)) return;
 
                 const cx = (wall.startX + wall.endX) / 2;
                 const cz = (wall.startZ + wall.endZ) / 2;
                 tempObject.position.set(cx, 0.5, cz);
+                if (wall.type === 'HORIZONTAL') tempObject.rotation.set(0, Math.PI / 2, 0)
+                else tempObject.rotation.set(0, 0, 0)
 
-                if (wall.type === 'HORIZONTAL') {
-                    tempObject.rotation.set(0, Math.PI / 2, 0)
-                } else {
-                    tempObject.rotation.set(0, 0, 0)
-                }
-
-                tempObject.scale.set(0.15, 0.9, 1.05) // Optimized Thickness, Height, Length
+                tempObject.scale.set(0.15, 0.9, 1.05)
                 tempObject.updateMatrix()
                 wallRef.current!.setMatrixAt(activeWallIndex, tempObject.matrix)
-
                 tempColor.set(themeColor)
                 wallRef.current!.setColorAt(activeWallIndex, tempColor)
                 activeWallIndex++;
             })
-
-            // 사용하지 않는 인스턴스 숨기기
             for (let j = activeWallIndex; j < walls.length; j++) {
                 tempObject.position.set(0, -999, 0)
                 tempObject.updateMatrix()
                 wallRef.current!.setMatrixAt(j, tempObject.matrix)
             }
-
             wallRef.current.instanceMatrix.needsUpdate = true
             if (wallRef.current.instanceColor) wallRef.current.instanceColor.needsUpdate = true
         }
 
-        // 3. 아이템(Gem) 업데이트
-        if (gemRef.current) {
-            items.forEach((item, i) => {
-                tempObject.position.set(item.x + 0.5, 0.5, item.z + 0.5)
-                tempObject.rotation.set(0, 0, 0)
-                tempObject.scale.set(0.3, 0.3, 0.3) // Gems should be smaller
-                tempObject.updateMatrix()
-                gemRef.current!.setMatrixAt(i, tempObject.matrix)
+        // 3. Items (Gems, Blocks, Plates)
+        const updateInstances = (ref: React.RefObject<InstancedMesh>, filter: (it: any) => boolean,
+            setup: (obj: Object3D, item: any) => void, colorStr: string) => {
+            if (!ref.current) return;
+            let idx = 0;
+            items.forEach((item) => {
+                if (filter(item)) {
+                    setup(tempObject, item);
+                    tempObject.updateMatrix();
+                    ref.current!.setMatrixAt(idx, tempObject.matrix);
+                    tempColor.set(colorStr);
+                    ref.current!.setColorAt(idx, tempColor);
+                    idx++;
+                }
+            });
+            for (let j = idx; j < items.length; j++) {
+                tempObject.position.set(0, -999, 0);
+                tempObject.updateMatrix();
+                ref.current!.setMatrixAt(j, tempObject.matrix);
+            }
+            ref.current.instanceMatrix.needsUpdate = true;
+            if (ref.current.instanceColor) ref.current.instanceColor.needsUpdate = true;
+        };
 
-                tempColor.set('#f59e0b')
-                gemRef.current!.setColorAt(i, tempColor)
-            })
-            gemRef.current.instanceMatrix.needsUpdate = true
-            if (gemRef.current.instanceColor) gemRef.current.instanceColor.needsUpdate = true
-        }
+        // Gem
+        updateInstances(gemRef, it => it.type === 'star', (obj, it) => {
+            obj.position.set(it.x + 0.5, 0.5, it.z + 0.5);
+            obj.rotation.set(0, 0, 0);
+            obj.scale.set(0.3, 0.3, 0.3);
+        }, '#f59e0b');
+
+        // Blocks
+        const blockSetup = (obj: Object3D, it: any) => {
+            obj.position.set(it.x + 0.5, 0.45, it.z + 0.5);
+            obj.rotation.set(0, 0, 0);
+            obj.scale.set(0.7, 0.7, 0.7);
+        };
+        updateInstances(cubeBlockRef, it => it.type === 'block_cube', blockSetup, '#ef4444');
+        updateInstances(sphereBlockRef, it => it.type === 'block_sphere', blockSetup, '#10b981');
+        updateInstances(tetraBlockRef, it => it.type === 'block_tetra', blockSetup, '#8b5cf6');
+
+        // Plates
+        const plateSetup = (obj: Object3D, it: any) => {
+            obj.position.set(it.x + 0.5, -0.2, it.z + 0.5);
+            obj.rotation.set(0, 0, 0);
+            obj.scale.set(0.8, 0.1, 0.8);
+        };
+        updateInstances(cubePlateRef, it => it.type === 'plate_cube', plateSetup, '#fca5a5');
+        updateInstances(spherePlateRef, it => it.type === 'plate_sphere', plateSetup, '#a7f3d0');
+        updateInstances(tetraPlateRef, it => it.type === 'plate_tetra', plateSetup, '#ddd6fe');
 
     }, [width, height, walls, items, floorTransforms])
 
-    /**
-     * 프레임 루프(useFrame): 아이템에 애니메이션 부여
-     */
     useFrame((state) => {
+        // Floating Gem animation
         if (gemRef.current) {
-            items.forEach((item, i) => {
-                const time = state.clock.elapsedTime
-                const yOffset = Math.sin(time * 2 + i) * 0.1
-                tempObject.position.set(item.x + 0.5, 0.5 + yOffset, item.z + 0.5)
-                tempObject.rotation.y += 0.02
-                tempObject.scale.set(0.3, 0.3, 0.3) // Keep scale consistent
-                tempObject.updateMatrix()
-                gemRef.current!.setMatrixAt(i, tempObject.matrix)
+            let idx = 0;
+            items.forEach((item) => {
+                if (item.type === 'star') {
+                    const time = state.clock.elapsedTime
+                    const yOffset = Math.sin(time * 2 + idx) * 0.1
+                    tempObject.position.set(item.x + 0.5, 0.5 + yOffset, item.z + 0.5)
+                    tempObject.rotation.y += 0.02
+                    tempObject.scale.set(0.3, 0.3, 0.3)
+                    tempObject.updateMatrix()
+                    gemRef.current!.setMatrixAt(idx, tempObject.matrix)
+                    idx++;
+                }
             })
             gemRef.current.instanceMatrix.needsUpdate = true
         }
@@ -133,22 +161,50 @@ export const MazeManager: React.FC = () => {
 
     return (
         <group>
-            {/* 바닥 레이어 */}
+            {/* Floor */}
             <instancedMesh ref={floorRef} args={[undefined, undefined, width * height]} receiveShadow>
                 <boxGeometry args={[0.95, 0.5, 0.95]} />
                 <meshStandardMaterial color="#f1f5f9" />
             </instancedMesh>
 
-            {/* 벽 레이어 */}
+            {/* Walls */}
             <instancedMesh ref={wallRef} args={[undefined, undefined, walls.length]} castShadow receiveShadow>
                 <boxGeometry args={[1, 1, 1]} />
                 <meshStandardMaterial transparent opacity={0.9} metalness={0.8} roughness={0.2} />
             </instancedMesh>
 
-            {/* 아이템 레이어 */}
+            {/* Puzzle Items */}
             <instancedMesh ref={gemRef} args={[undefined, undefined, items.length]} castShadow>
                 <octahedronGeometry args={[1, 0]} />
                 <meshStandardMaterial emissive="#f59e0b" emissiveIntensity={1} color="#f59e0b" />
+            </instancedMesh>
+
+            {/* Blocks */}
+            <instancedMesh ref={cubeBlockRef} args={[undefined, undefined, items.length]} castShadow>
+                <boxGeometry args={[1, 1, 1]} />
+                <meshStandardMaterial color="white" />
+            </instancedMesh>
+            <instancedMesh ref={sphereBlockRef} args={[undefined, undefined, items.length]} castShadow>
+                <sphereGeometry args={[0.5, 32, 32]} />
+                <meshStandardMaterial color="white" />
+            </instancedMesh>
+            <instancedMesh ref={tetraBlockRef} args={[undefined, undefined, items.length]} castShadow>
+                <tetrahedronGeometry args={[0.6]} />
+                <meshStandardMaterial color="white" />
+            </instancedMesh>
+
+            {/* Plates (Translucent markers on floor) */}
+            <instancedMesh ref={cubePlateRef} args={[undefined, undefined, items.length]} receiveShadow>
+                <boxGeometry args={[1, 1, 1]} />
+                <meshStandardMaterial transparent opacity={0.5} color="white" />
+            </instancedMesh>
+            <instancedMesh ref={spherePlateRef} args={[undefined, undefined, items.length]} receiveShadow>
+                <sphereGeometry args={[0.5, 32, 32]} />
+                <meshStandardMaterial transparent opacity={0.5} color="white" />
+            </instancedMesh>
+            <instancedMesh ref={tetraPlateRef} args={[undefined, undefined, items.length]} receiveShadow>
+                <tetrahedronGeometry args={[0.6]} />
+                <meshStandardMaterial transparent opacity={0.5} color="white" />
             </instancedMesh>
         </group>
     )

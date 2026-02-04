@@ -85,7 +85,7 @@ const App: React.FC = () => {
             <div className="absolute top-10 right-10 flex flex-col gap-2 z-50">
                 <div className="text-[10px] font-bold text-amber-900/40 mb-1 ml-2">TUTORIALS</div>
                 <div className="flex gap-2 mb-2">
-                    {[1, 2, 3, 4].map(lv => (
+                    {[1, 2, 3, 4, 5].map(lv => (
                         <button
                             key={lv}
                             onClick={() => loadStage('tutorial', lv)}
@@ -101,7 +101,7 @@ const App: React.FC = () => {
 
                 <div className="text-[10px] font-bold text-amber-900/40 mb-1 ml-2">MAIN STAGES</div>
                 <div className="flex gap-2">
-                    {[1, 2].map(lv => (
+                    {[1, 2, 3].map(lv => (
                         <button
                             key={lv}
                             onClick={() => loadStage('main', lv)}
