@@ -274,7 +274,7 @@ export function Book({ leftContent, rightContent }: BookProps) {
                             <div className="flex justify-between border-b border-[#d4af37]/30 pb-2">
                                 <span className="opacity-80 text-[#e5dec9]">소요 시간</span>
                                 {/* Assuming gameStatus has playTime or we calculate roughly */}
-                                <span className="font-mono text-[#fff8e1]">{Math.floor((Date.now() - (useGameStore.getState().startTime)) / 1000)}초</span>
+                                <span className="font-mono text-[#fff8e1]">{useGameStore.getState().finalTime?.toFixed(2) || '0.00'}초</span>
                             </div>
                             <div className="flex justify-between border-b border-[#d4af37]/30 pb-2">
                                 <span className="opacity-80 text-[#e5dec9]">명령어 수</span>
@@ -288,8 +288,8 @@ export function Book({ leftContent, rightContent }: BookProps) {
                         <div className="mt-8 text-sm opacity-60 text-center italic text-[#e5dec9] flex flex-col gap-2">
                             <span>"미로 탈출"</span>
                             {isSaving && <span className="text-[#d4af37] animate-pulse">데이터베이스 저장 중...</span>}
-                            {!isSaving && !saveError && <span className="text-green-400">✅ 기록 저장 완료</span>}
-                            {saveError && <span className="text-red-400">❌ 저장 실패</span>}
+                            {!isSaving && !saveError && <span className="text-green-400">기록 저장 완료</span>}
+                            {saveError && <span className="text-red-400">저장 실패</span>}
                         </div>
                     </div>
                 </div>

@@ -15,6 +15,7 @@ interface GameState {
     isSaving?: boolean;
     saveError?: string | null;
     error: string | null;
+    finalTime: number | null;
 
     // Core Engines
     git: GitEngine;
@@ -32,6 +33,7 @@ interface GameState {
     completeGame: () => Promise<void>;
     movePlayer: (dx: number, dz: number) => void;
     addLog: (log: string) => void;
+    loadTutorial: (level: number) => Promise<void>;
 
 
     // Tearing Flow (Reset)
@@ -93,6 +95,7 @@ export const useGameStore = create<GameState>((set, get) => {
         terminalHistory: ['Welcome to gitMaze.', 'Initializing system...'],
         visualEffect: 'none',
         pendingResetAction: null,
+        finalTime: null,
 
         addLog: (log: string) => set((state) => ({ terminalHistory: [...state.terminalHistory, log] })),
 
@@ -182,13 +185,37 @@ export const useGameStore = create<GameState>((set, get) => {
                     isLoading: false,
                     error: null
                 });
-                //addLog('Notice: Operating in Offline Mode (Local Storage).');
             }
         },
 
-        /**
-         * 현재 Git 엔진의 상태를 백엔드(또는 로컬 스토리지)와 동기화합니다.
-         */
+        loadTutorial: async (level: number) => {
+            const { git, addLog } = get();
+            set({ isLoading: true, error: null });
+
+            try {
+                addLog(`Loading tutorial stage ${level}...`);
+                const mazeData = await api.getTutorialMaze(level);
+
+                // Reset Git engine with new tutorial maze
+                const newGit = new GitEngine(mazeData);
+
+                set({
+                    git: newGit,
+                    currentMaze: newGit.getCurrentState(),
+                    isLoading: false,
+                    gitVersion: get().gitVersion + 1,
+                    gameStatus: 'playing',
+                    startTime: Date.now(),
+                    commandCount: 0
+                });
+
+                addLog(`Tutorial ${level} ready. Good luck!`);
+            } catch (err) {
+                console.error("Tutorial load failed:", err);
+                set({ isLoading: false, error: "Failed to load tutorial" });
+            }
+        },
+
         syncToBackend: async () => {
             const { userId, git } = get();
             try {
@@ -255,9 +282,8 @@ export const useGameStore = create<GameState>((set, get) => {
 
         completeGame: async () => {
             const { userId, startTime, commandCount } = get();
-            const playTime = Math.floor((Date.now() - startTime) / 1000); // seconds
-
-            set({ gameStatus: 'cleared', isSaving: true, saveError: null });
+            const playTime = (Date.now() - startTime) / 1000; // seconds (precise)
+            set({ gameStatus: 'cleared', isSaving: true, saveError: null, finalTime: playTime });
 
             try {
                 await api.endGame(userId, commandCount, playTime);
@@ -286,7 +312,8 @@ export const useGameStore = create<GameState>((set, get) => {
                 setMaze: (maze) => set({ currentMaze: maze }),
                 syncToBackend,
                 requestFlip,
-                requestTear
+                requestTear,
+                loadTutorial: get().loadTutorial
             });
 
             // Force re-render of components tracking the git engine

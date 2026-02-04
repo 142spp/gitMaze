@@ -42,6 +42,24 @@ export const api = {
     },
 
     /**
+     * 특정 튜토리얼 레벨의 미로 데이터를 가져옵니다.
+     * @param level 튜토리얼 레벨 (1-4)
+     */
+    getTutorialMaze: async (level: number): Promise<MazeState> => {
+        try {
+            const response = await fetch(`${API_BASE_URL}/maze/tutorial/${level}`);
+            if (!response.ok) {
+                throw new Error(`Failed to fetch tutorial maze: ${level}`);
+            }
+            return response.json();
+        } catch (err) {
+            console.error("Failed to fetch tutorial:", err);
+            // Fallback: simple 6x6 if error
+            return initialMaze as MazeState;
+        }
+    },
+
+    /**
      * 현재의 Git 그래프(게임 진행 상황)를 서버 또는 로컬 스토리지에 저장합니다.
      * @param userId 사용자 고유 ID
      * @param gitGraph 직렬화된 Git 그래프 JSON 문자열

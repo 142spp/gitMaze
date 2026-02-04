@@ -9,6 +9,7 @@ export interface CommandContext {
     syncToBackend: () => Promise<void>;
     requestFlip?: (action: () => void) => void;
     requestTear?: (action: () => void) => void;
+    loadTutorial?: (level: number) => Promise<void>;
 }
 
 export class CommandHandler {
@@ -27,7 +28,8 @@ export class CommandHandler {
                     '  merge <branch>        \t브랜치를 병합합니다.',
                     '  reset [--soft] [<target>]\t해당 커밋으로 되돌아갑니다.',
                     '  push                  \t커밋을 서버에 저장합니다.',
-                    '  pull                  \t서버의 커밋을 가져옵니다.'
+                    '  pull                  \t서버의 커밋을 가져옵니다.',
+                    '  tutorial <level>      \t튜토리얼 스테이지(1~4)를 불러옵니다.'
                 ].join('\r\n');
                 addLog(helpText);
             }
@@ -117,6 +119,17 @@ export class CommandHandler {
                 // Pulling requires a full re-initialization which is usually handled by the store
                 // We'll throw an error or handle it specifically in the store
                 throw new Error('Pull command should be handled by the game logic');
+            }
+            else if (parts[0] === 'git' && parts[1] === 'tutorial') {
+                const level = parseInt(parts[2]);
+                if (isNaN(level) || level < 1 || level > 4) {
+                    throw new Error('Tutorial level must be between 1 and 4. (e.g. git tutorial 1)');
+                }
+                if (context.loadTutorial) {
+                    await context.loadTutorial(level);
+                } else {
+                    throw new Error('Tutorial loading not available in this context');
+                }
             }
             else {
                 addLog(`다음 명령어는 지원되지 않습니다 : ${cmd}. 'help'를 입력해보세요.`);
