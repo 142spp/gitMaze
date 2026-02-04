@@ -14,15 +14,13 @@ export class CommandHandler {
         const { git, addLog, currentMaze, setMaze, syncToBackend } = context;
         const parts = cmd.trim().split(/\s+/);
 
-        addLog(`> ${cmd}`);
-
         try {
             if (parts[0] === 'help' || (parts[0] === 'git' && parts[1] === 'help')) {
                 const helpText = [
                     '사용법: git <command> [<args>] (대괄호는 생략가능)',
                     '사용 가능한 명령어(command):',
                     '  commit [-m] [<msg>]   \t커밋을 생성합니다.',
-                    '  branch [<branch>]     \t브랜치 목록을 보거나 브랜치를 생성합니다.',
+                    '  branch [<target>]     \t브랜치 목록을 보거나 브랜치를 생성합니다.',
                     '  checkout [-b] <target>\t커밋 또는 브랜치로 이동합니다.',
                     '  merge <branch>        \t브랜치를 병합합니다.',
                     '  reset [--soft] [<target>]\t해당 커밋으로 되돌아갑니다.',

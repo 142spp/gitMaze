@@ -31,6 +31,7 @@ export class GitEngine {
         this.graph = {
             commits: new Map([[initialCommit.id, initialCommit]]),
             branches: new Map([['main', initialCommit.id]]),
+            branchColors: new Map([['main', '#f97316']]), // Orange for main
             HEAD: {
                 type: 'branch',
                 ref: 'main',
@@ -79,6 +80,11 @@ export class GitEngine {
         if (this.graph.branches.has(name)) throw new Error(`Branch already exists: ${name}`);
 
         this.graph.branches.set(name, currentCommitId);
+
+        // Assign sequential color from palette
+        const BRANCH_COLOR_PALETTE = ["#f97316", "#eab308", "#22c55e", "#a855f7", "#ef4444", "#06b6d4"];
+        const nextColorIndex = this.graph.branchColors.size % BRANCH_COLOR_PALETTE.length;
+        this.graph.branchColors.set(name, BRANCH_COLOR_PALETTE[nextColorIndex]);
     }
 
     /**
@@ -213,6 +219,7 @@ export class GitEngine {
         const data = {
             commits: Array.from(this.graph.commits.entries()),
             branches: Array.from(this.graph.branches.entries()),
+            branchColors: Array.from(this.graph.branchColors.entries()),
             HEAD: this.graph.HEAD
         };
         return JSON.stringify(data);
@@ -226,6 +233,7 @@ export class GitEngine {
         this.graph = {
             commits: new Map(data.commits),
             branches: new Map(data.branches),
+            branchColors: new Map(data.branchColors || [['main', '#f97316']]),
             HEAD: data.HEAD
         };
         return this.getCurrentState();

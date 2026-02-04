@@ -36,7 +36,7 @@ export const TerminalController: React.FC = () => {
             fontSize: 14,
             allowProposedApi: true,
             lineHeight: 1.4,
-            letterSpacing: -1, // Using integer -1 because xterm.js rounds letterSpacing
+            letterSpacing: -1,
         })
 
         const fitAddon = new FitAddon()
@@ -67,25 +67,34 @@ export const TerminalController: React.FC = () => {
 
         // Mock OS header like in reference
         term.writeln('GitMaze Diary-OS v1.0.4')
-        term.writeln('(c) PaperInk Corp. All rights reserved.\r\n')
-
-        terminalHistory.forEach(line => {
-            const normalizedLine = line.replace(/\n/g, '\r\n');
-            if (line.startsWith('> ')) {
-                term.write(PROMPT)
-                term.writeln(normalizedLine.substring(2))
-            } else {
-                term.writeln(normalizedLine)
-            }
-        })
-
+        term.writeln('gitMaze에 오신걸 환영합니다.')
+        term.writeln('명령어를 입력해주세요. (도움말: help)')
         term.write(PROMPT)
 
+        // Initial render of history is now handled by the other useEffect
+        xtermRef.current = term
+
         let currentInput = ''
-        term.onKey(({ key, domEvent }) => {
+        let commandHistory: string[] = []
+        let historyIndex = -1
+
+        // Calculate the actual display length of the prompt (excluding ANSI codes)
+        const PROMPT_DISPLAY_LENGTH = 17 // "user@git-maze:~$ "
+
+        const clearCurrentLine = () => {
+            // Move cursor to beginning and clear the line
+            term.write('\r' + ' '.repeat(PROMPT_DISPLAY_LENGTH + currentInput.length + 10))
+            term.write('\r')
+            term.write(PROMPT)
+        }
+
+        const onKeyDisposable = term.onKey(({ key, domEvent }) => {
             if (domEvent.keyCode === 13) { // Enter
                 term.write('\r\n')
                 if (currentInput.trim()) {
+                    // Add to history
+                    commandHistory.push(currentInput)
+                    historyIndex = commandHistory.length
                     sendCommand(currentInput)
                 } else {
                     term.write(PROMPT)
@@ -96,28 +105,76 @@ export const TerminalController: React.FC = () => {
                     currentInput = currentInput.slice(0, -1)
                     term.write('\b \b')
                 }
+            } else if (domEvent.keyCode === 38) { // Up arrow
+                domEvent.preventDefault()
+                if (commandHistory.length > 0 && historyIndex > 0) {
+                    historyIndex--
+                    clearCurrentLine()
+                    currentInput = commandHistory[historyIndex]
+                    term.write(currentInput)
+                }
+            } else if (domEvent.keyCode === 40) { // Down arrow
+                domEvent.preventDefault()
+                if (historyIndex < commandHistory.length - 1) {
+                    historyIndex++
+                    clearCurrentLine()
+                    currentInput = commandHistory[historyIndex]
+                    term.write(currentInput)
+                } else if (historyIndex === commandHistory.length - 1) {
+                    historyIndex = commandHistory.length
+                    clearCurrentLine()
+                    currentInput = ''
+                }
+            } else if (domEvent.keyCode === 37 || domEvent.keyCode === 39) { // Left/Right arrow
+                // Block left/right arrow keys to prevent cursor movement
+                domEvent.preventDefault()
             } else {
                 currentInput += key
                 term.write(key)
             }
         })
 
-        xtermRef.current = term
-
         return () => {
+            onKeyDisposable.dispose()
             resizeObserver.disconnect()
             clearTimeout(timer)
             term.dispose()
         }
     }, [])
 
+    const lastRenderedIndex = useRef(0)
+
     useEffect(() => {
-        if (xtermRef.current && terminalHistory.length > 0) {
-            const lastLine = terminalHistory[terminalHistory.length - 1]
-            if (!lastLine.startsWith('> ')) {
-                xtermRef.current.writeln(lastLine.replace(/\n/g, '\r\n'))
-                xtermRef.current.write(PROMPT)
-            }
+        const term = xtermRef.current
+        if (!term) return
+
+        // Render any new lines in history
+        const newLines = terminalHistory.slice(lastRenderedIndex.current)
+
+        if (newLines.length > 0) {
+            newLines.forEach((line, index) => {
+                const normalizedLine = line.replace(/\n/g, '\r\n')
+                const isLastLine = (lastRenderedIndex.current + index) === terminalHistory.length - 1
+
+                if (line.startsWith('> ')) {
+                    // This is a command input log. 
+                    // To avoid duplicating the command the user just typed, 
+                    // we only render it if we're replaying old history (i.e., not just added).
+                    // Actually, if it's new but IS the last line, we usually want to skip the prompt/line
+                    // because the user already typed it? 
+                    // No, because term.writeln will move us to the next line.
+
+                    // Simple logic: if it starts with '>', we rewrite the line to ensure prompt is there (for history replay)
+                    term.write('\r') // Move to start of line
+                    term.write(PROMPT)
+                    term.writeln(normalizedLine.substring(2))
+                } else {
+                    term.writeln(normalizedLine)
+                }
+            })
+
+            term.write(PROMPT)
+            lastRenderedIndex.current = terminalHistory.length
         }
     }, [terminalHistory])
 

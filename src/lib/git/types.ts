@@ -68,5 +68,6 @@ export interface GitReference {
 export interface GitGraph {
     commits: Map<CommitHash, CommitNode>;
     branches: Map<string, CommitHash>;
+    branchColors: Map<string, string>; // Maps branch name to hex color
     HEAD: GitReference;
 }

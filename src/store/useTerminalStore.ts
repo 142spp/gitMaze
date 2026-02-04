@@ -7,7 +7,7 @@ interface TerminalState {
 }
 
 export const useTerminalStore = create<TerminalState>((set) => ({
-    terminalHistory: ['Welcome to gitMaze.', 'Initializing system...'],
+    terminalHistory: [],
 
     /**
      * 터미널 로그에 메시지를 추가합니다.

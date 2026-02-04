@@ -38,6 +38,13 @@
     background: rgba(139, 94, 60, 0.5);
   }
 
+  /* Force default cursor in Git Graph */
+  .react-flow__pane,
+  .react-flow__node,
+  .react-flow__edge {
+    cursor: default !important;
+  }
+
   /* Page Curve Shadows */
   .page-shadow-left {
     @apply absolute right-0 top-0 bottom-0 w-12 bg-gradient-to-l from-black/10 to-transparent pointer-events-none mix-blend-multiply;

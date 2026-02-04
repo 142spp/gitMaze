@@ -104,7 +104,7 @@ export const useGameStore = create<GameState>((set, get) => {
                     isLoading: false,
                     error: null
                 });
-                addLog('Notice: Operating in Offline Mode (Local Storage).');
+                //addLog('Notice: Operating in Offline Mode (Local Storage).');
             }
         },
 
