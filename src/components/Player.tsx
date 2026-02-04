@@ -1,10 +1,11 @@
 import React, { useRef, useEffect, useState } from 'react'
-import { useFrame } from '@react-three/fiber'
+import { useFrame, useThree } from '@react-three/fiber'
 import { useGameStore } from '../store/useGameStore'
-import { Group } from 'three'
+import { Group, Vector3 } from 'three'
 import { useGLTF, useAnimations } from '@react-three/drei'
 
 export const Player: React.FC = () => {
+    const { camera } = useThree()
     const groupRef = useRef<Group>(null)
     const currentMaze = useGameStore((state) => state.currentMaze)
     const playerPosition = currentMaze.playerPosition
@@ -65,6 +66,7 @@ export const Player: React.FC = () => {
     }, [isFalling, resetPlayerPosition]);
 
     // Keyboard Controls
+    // Keyboard Controls
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
             // Block input during falling animation
@@ -73,33 +75,51 @@ export const Player: React.FC = () => {
             // Prevent scrolling
             if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].indexOf(e.code) > -1) {
                 e.preventDefault();
+            } else {
+                return; // Ignore other keys
             }
 
-            let dx = 0;
-            let dz = 0;
+            // 1. Get Camera Direction (Projected to Flat XZ Plane)
+            const forward = new Vector3(0, 0, -1);
+            forward.applyQuaternion(camera.quaternion);
+            forward.y = 0;
+            forward.normalize();
+
+            // 2. Snap to nearest Cardinal Axis (Grid Alignment)
+            const absX = Math.abs(forward.x);
+            const absZ = Math.abs(forward.z);
+
+            const snappedForward = new Vector3();
+            if (absX > absZ) {
+                snappedForward.set(Math.sign(forward.x), 0, 0);
+            } else {
+                snappedForward.set(0, 0, Math.sign(forward.z));
+            }
+
+            const snappedRight = new Vector3(snappedForward.z, 0, -snappedForward.x); // Rotate -90 deg
+
+            let moveVec = new Vector3(0, 0, 0);
 
             if (e.code === 'ArrowUp') {
-                dz = -1;
-                targetRotationY.current = Math.PI;
+                moveVec.copy(snappedForward);
             } else if (e.code === 'ArrowDown') {
-                dz = 1;
-                targetRotationY.current = 0;
+                moveVec.copy(snappedForward).negate();
             } else if (e.code === 'ArrowLeft') {
-                dx = -1;
-                targetRotationY.current = -Math.PI / 2;
+                moveVec.copy(snappedRight); // Swapped: Now matches 'Right' vector which apparently points Left
             } else if (e.code === 'ArrowRight') {
-                dx = 1;
-                targetRotationY.current = Math.PI / 2;
+                moveVec.copy(snappedRight).negate(); // Swapped
             }
 
-            if (dx !== 0 || dz !== 0) {
-                movePlayer(dx, dz);
+            if (moveVec.lengthSq() > 0) {
+                // Face the direction of movement
+                targetRotationY.current = Math.atan2(moveVec.x, moveVec.z);
+                movePlayer(Math.round(moveVec.x), Math.round(moveVec.z));
             }
         };
 
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [movePlayer, isFalling]);
+    }, [movePlayer, isFalling, camera]);
 
     useFrame((state, delta) => {
         if (groupRef.current) {
