@@ -205,7 +205,7 @@ export const MazeManager: React.FC = () => {
             </instancedMesh>
 
             {/* Walls (legacy) */}
-            <instancedMesh ref={wallRef} args={[undefined, undefined, Math.max(walls.length, 1)]} castShadow receiveShadow>
+            <instancedMesh ref={wallRef} args={[undefined, undefined, walls.length]} castShadow receiveShadow>
                 <boxGeometry args={[1, 1, 1]} />
                 <meshStandardMaterial transparent opacity={0.9} metalness={0.8} roughness={0.2} />
             </instancedMesh>
