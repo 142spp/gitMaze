@@ -8,7 +8,7 @@ import { CommandHandler } from '../lib/git/CommandHandler'
 interface GameState {
     // Session
     userId: string;
-    gameStatus: 'playing' | 'cleared';
+    gameStatus: 'intro' | 'playing' | 'cleared';
     startTime: number;
     commandCount: number;
     isLoading: boolean;
@@ -31,6 +31,7 @@ interface GameState {
     isFalling: boolean;
 
     // Actions
+    startGame: () => void;
     initialize: () => Promise<void>;
     sendCommand: (cmd: string) => Promise<void>;
     completeGame: () => Promise<void>;
@@ -90,7 +91,7 @@ export const useGameStore = create<GameState>((set, get) => {
 
     return {
         userId: getUserId(),
-        gameStatus: 'playing',
+        gameStatus: 'intro',
         startTime: Date.now(),
         commandCount: 0,
         isLoading: true,
@@ -164,6 +165,14 @@ export const useGameStore = create<GameState>((set, get) => {
         },
 
         finishFlip: () => set({ visualEffect: 'none' }),
+
+        startGame: () => {
+            get().requestFlip(() => {
+                set({ gameStatus: 'playing' });
+                // Also trigger initialization if needed, but it might be better to do it separately or here
+                get().initialize();
+            });
+        },
 
         initialize: async () => {
             const { userId, addLog } = get();

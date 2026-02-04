@@ -5,9 +5,10 @@ import html2canvas from 'html2canvas';
 interface BookProps {
     leftContent: ReactNode;
     rightContent: ReactNode;
+    isClosed?: boolean;
 }
 
-export function Book({ leftContent, rightContent }: BookProps) {
+export function Book({ leftContent, rightContent, isClosed = false }: BookProps) {
     const visualEffect = useGameStore(state => state.visualEffect);
     const confirmTear = useGameStore(state => state.confirmTear);
     const confirmFlip = useGameStore(state => state.confirmFlip);
@@ -19,15 +20,21 @@ export function Book({ leftContent, rightContent }: BookProps) {
     const isTearing = visualEffect === 'tearing';
     const isCleared = gameStatus === 'cleared';
 
-    console.log("Book Render: gameStatus =", gameStatus, "isCleared =", isCleared);
+    console.log("Book Render: gameStatus =", gameStatus, "isClosed =", isClosed);
 
     const bookRef = useRef<HTMLDivElement>(null);
     const [captureImage, setCaptureImage] = useState<string | null>(null);
+    const [isCoverFlip, setIsCoverFlip] = useState(false);
 
     // Handle Preparation (Screenshot)
     useEffect(() => {
         if ((visualEffect === 'preparing-tear' || visualEffect === 'preparing-flip') && bookRef.current) {
 
+
+            // Detect if we are flipping from a closed state (Cover Flip)
+            const currentWidth = bookRef.current.offsetWidth;
+            const isClosedState = currentWidth < (window.innerWidth < 1200 ? window.innerWidth : 1200) * 0.8;
+            setIsCoverFlip(isClosedState);
 
             const capture = async () => {
                 try {
@@ -36,7 +43,9 @@ export function Book({ leftContent, rightContent }: BookProps) {
                         allowTaint: true,
                         backgroundColor: null,
                         logging: false,
-                        scale: 1
+                        scale: 1,
+                        width: bookRef.current?.scrollWidth,
+                        height: bookRef.current?.scrollHeight
                     });
 
                     setCaptureImage(canvas.toDataURL('image/png'));
@@ -66,11 +75,13 @@ export function Book({ leftContent, rightContent }: BookProps) {
     return (
         <div
             ref={bookRef}
-            className={`relative z-10 w-full flex justify-center perspective-1000 transition-transform duration-1000 ease-in-out ${isCleared ? 'translate-x-[25%]' : ''}`}
+            className={`relative z-10 flex justify-center perspective-1000 transition-all duration-1000 ease-in-out ${isCleared ? 'translate-x-[25%]' : ''}`}
             style={{
                 maxWidth: '1200px',
                 height: 'min(94vh, 1000px)',
-                width: 'min(100%, calc(min(94vh, 1000px) * 4 / 3))',
+                width: isClosed
+                    ? 'min(50%, calc(min(94vh, 1000px) * 2 / 3))' // Half width for closed
+                    : 'min(100%, calc(min(94vh, 1000px) * 4 / 3))', // Full width for open
                 margin: '0 auto'
             }}
         >
@@ -128,54 +139,55 @@ export function Book({ leftContent, rightContent }: BookProps) {
             )}
 
             {/* OVERLAYS (Only visible during flipping) */}
-            {visualEffect === 'flipping' && captureImage && (
+            {visualEffect === 'flipping' && (
                 <>
-                    {/* 1. Static Old Left Page (Maintains context until covered) */}
-                    <div
-                        className="absolute top-0 left-0 h-full w-1/2 z-40 pointer-events-none"
-                    >
-                        <div className="w-full h-full" style={{
-                            backgroundImage: `url(${captureImage})`,
-                            backgroundSize: '200% 100%',
-                            backgroundPosition: 'left top'
-                        }} />
-                        {/* Static Shadow on Left Page */}
-                        <div className="absolute right-0 top-0 bottom-0 w-12 bg-gradient-to-l from-black/10 to-transparent" />
-                    </div>
+                    {/* 1. Static Old Left Page (Maintains context until covered) - ONLY IF PAGE FLIP */}
+                    {!isCoverFlip && captureImage && (
+                        <div
+                            className="absolute top-0 left-0 h-full w-1/2 z-40 pointer-events-none"
+                        >
+                            <div className="w-full h-full" style={{
+                                backgroundImage: `url(${captureImage})`,
+                                backgroundSize: '200% 100%',
+                                backgroundPosition: 'left top'
+                            }} />
+                            <div className="absolute right-0 top-0 bottom-0 w-12 bg-gradient-to-l from-black/10 to-transparent" />
+                        </div>
+                    )}
 
-                    {/* 2. Flipping Page (Old Right Page -> Turns Left) */}
+                    {/* 2. Flipping Page (Cover/Page -> Turns Left) */}
                     <div
                         className="absolute top-0 right-0 h-full w-1/2 z-50 pointer-events-none animate-page-flip shadow-2xl"
                         style={{
-                            left: '50%',
-                            transformOrigin: 'left center',
-                            perspective: '2000px'
+                            left: '0%',
+                            width: '50%',
+                            transformOrigin: 'right center',
+                            perspective: '2000px',
+                            animationDirection: 'reverse'
                         }}
                     >
-                        {/* Front Face (Old Right Content) */}
+                        {/* Front Face (Now: The DESTINATION - Inner Left Page) */}
                         <div className="absolute inset-0 w-full h-full backface-hidden" style={{
-                            backgroundImage: `url(${captureImage})`,
-                            backgroundSize: '200% 100%',
-                            backgroundPosition: 'right top',
-                            backfaceVisibility: 'hidden',
-                            backgroundColor: '#f7f3e8' // Paper color fallback
+                            backgroundColor: '#f7f3e8',
+                            backgroundImage: `url('https://www.transparenttextures.com/patterns/paper.png')`,
+                            borderRadius: isCoverFlip ? '40px 10px 10px 40px' : '0', // Inner shape
                         }} >
-                            {/* Inner shadow for curvature - LIGHTER */}
-                            <div className="absolute left-0 top-0 bottom-0 w-8 bg-gradient-to-r from-black/5 to-transparent" />
+                            {isCoverFlip && <div className="absolute inset-0 w-full h-full border border-[#e5dec9] border-r-0 rounded-l-[30px]" />}
+                            <div className="absolute right-0 top-0 bottom-0 w-12 bg-gradient-to-l from-black/5 to-transparent" />
                         </div>
 
-                        {/* Back Face (The side seen after flipping) 
-                            Ideally this should be the New Left Page, but we don't have it captured.
-                            We'll make it a generic paper texture for now. 
-                        */}
+                        {/* Back Face (Now: The SOURCE - Cover / Old Right Page) */}
                         <div className="absolute inset-0 w-full h-full" style={{
                             transform: 'rotateY(180deg)',
                             backfaceVisibility: 'hidden',
-                            backgroundColor: '#fdfbf7',
-                            backgroundImage: `url('https://www.transparenttextures.com/patterns/paper.png')`, // Optional texture
+                            backgroundColor: '#f7f3e8', // Match Page Color - Changed to Paper
+                            backgroundImage: `url('https://www.transparenttextures.com/patterns/paper.png')`,
+                            borderRadius: isCoverFlip ? '10px 40px 40px 10px' : '0', // Keep shape but use paper texture
+                            backgroundSize: 'auto', // Reset size
+                            backgroundPosition: '0 0', // Reset position
                         }}>
-                            {/* Reverse shadow - LIGHTER */}
-                            <div className="absolute right-0 top-0 bottom-0 w-12 bg-gradient-to-l from-black/5 to-transparent" />
+                            {isCoverFlip && <div className="absolute inset-0 w-full h-full border border-[#e5dec9] border-l-0 rounded-r-[30px]" />}
+                            <div className="absolute left-0 top-0 bottom-0 w-8 bg-gradient-to-r from-black/5 to-transparent" />
                         </div>
                     </div>
                 </>
@@ -184,10 +196,16 @@ export function Book({ leftContent, rightContent }: BookProps) {
             {/* LEFT HALF (Real Content) */}
             <div
                 className={`shrink-0 h-full relative transition-all duration-1000 ease-in-out ${isTearing ? 'opacity-0' : ''} ${isCleared ? 'w-1/2' : 'w-[280px]'}`}
-                style={{ transformOrigin: 'right center' }}
+                style={{
+                    transformOrigin: 'right center',
+                    width: isClosed ? '0px' : undefined,
+                    opacity: isClosed ? 0 : 1,
+                    pointerEvents: isClosed ? 'none' : 'auto',
+                    overflow: 'hidden'
+                }}
             >
-                {/* Clasp (Left Side) - Hidden when cleared */}
-                {!isCleared && (
+                {/* Clasp (Left Side) - Hidden when cleared or closed */}
+                {!isCleared && !isClosed && (
                     <div className="absolute top-1/2 -translate-y-1/2 -left-3 w-12 h-20 z-30 flex items-center">
                         <div className="w-full h-10 bg-[#6d4c41] rounded-l-lg shadow-md relative">
                             <div className="absolute right-1 top-1/2 -translate-y-1/2 w-6 h-6 bg-[#d4af37] rounded-md shadow-inner flex items-center justify-center">
@@ -221,16 +239,25 @@ export function Book({ leftContent, rightContent }: BookProps) {
                     zIndex: isCleared ? 100 : 20
                 }}
             >
-                {/* FRONT FACE (Normal Right Page) */}
+                {/* FRONT FACE (Normal Right Page OR Front Cover) */}
                 <div className="absolute inset-0 w-full h-full backface-hidden" style={{ backfaceVisibility: 'hidden' }}>
-                    <div className="absolute inset-0 bg-[#5d4037] rounded-r-[40px] shadow-[0_20px_50px_rgba(0,0,0,0.3)] overflow-hidden">
+                    <div className={`absolute inset-0 bg-[#5d4037] shadow-[0_20px_50px_rgba(0,0,0,0.3)] overflow-hidden transition-all duration-1000 ${isClosed ? 'rounded-[10px_40px_40px_10px]' : 'rounded-r-[40px]'}`}>
                         <div className="absolute left-0 top-0 bottom-0 w-6 bg-gradient-to-r from-black/40 to-transparent" />
+                        {/* Leather Texture for Cover Mode */}
+                        {isClosed && (
+                            <div className="absolute inset-0 opacity-40 pointer-events-none" style={{ backgroundImage: `url('https://www.transparenttextures.com/patterns/leather.png')` }} />
+                        )}
                     </div>
-                    <div className="relative z-20 w-full h-full p-4 pl-0">
-                        <div className="w-full h-full bg-[#f7f3e8] rounded-r-[30px] border border-[#e5dec9] border-l-0 overflow-hidden relative">
-                            <div className="absolute left-0 top-0 bottom-0 w-2 bg-red-500/0 z-50 element-tear-edge-right"></div>
+                    {/* Content Container */}
+                    <div className={`relative z-20 w-full h-full transition-all duration-1000 ${isClosed ? 'p-0' : 'p-4 pl-0'}`}>
+                        <div className={`w-full h-full overflow-hidden relative transition-all duration-1000 ${isClosed ? 'bg-transparent' : 'bg-[#f7f3e8] rounded-r-[30px] border border-[#e5dec9] border-l-0'}`}>
+                            {/* Tear Edge (only if not closed) */}
+                            {!isClosed && <div className="absolute left-0 top-0 bottom-0 w-2 bg-red-500/0 z-50 element-tear-edge-right"></div>}
+
                             {rightContent}
-                            <div className="absolute left-0 top-0 bottom-0 w-12 bg-gradient-to-r from-black/10 to-transparent pointer-events-none z-50" />
+
+                            {/* Inner Shadow (only if not closed/cover) */}
+                            {!isClosed && <div className="absolute left-0 top-0 bottom-0 w-12 bg-gradient-to-r from-black/10 to-transparent pointer-events-none z-50" />}
                         </div>
                     </div>
                     {/* Pencil (Attached to Front Face) */}
