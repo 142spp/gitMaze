@@ -7,11 +7,13 @@ export interface CommandContext {
     addLog: (log: string) => void;
     setMaze: (maze: MazeState) => void;
     syncToBackend: () => Promise<void>;
+    requestFlip?: (action: () => void) => void;
+    requestTear?: (action: () => void) => void;
 }
 
 export class CommandHandler {
     static async execute(cmd: string, context: CommandContext): Promise<void> {
-        const { git, addLog, currentMaze, setMaze, syncToBackend } = context;
+        const { git, addLog, currentMaze, setMaze, syncToBackend, requestFlip, requestTear } = context;
         const parts = cmd.trim().split(/\s+/);
 
         try {
@@ -35,12 +37,14 @@ export class CommandHandler {
                     git.createBranch(branchName);
                     addLog(`Branch '${branchName}' created.`);
                 } else {
+                    // List branches
                     const branches = git.getBranches();
                     const head = git.getGraph().HEAD;
                     const currentBranch = head.type === 'branch' ? head.ref : null;
 
                     branches.forEach(branch => {
                         if (branch === currentBranch) {
+                            // Green color for current branch (using simplified markup or just text)
                             addLog(`* ${branch}`);
                         } else {
                             addLog(`  ${branch}`);
@@ -55,17 +59,28 @@ export class CommandHandler {
                     target = parts[3];
                     if (!target) throw new Error('Branch name required');
                     git.createBranch(target);
-                    addLog(`Created branch '${target}' and switched to it.`);
+                    addLog(`Created branch '${target}'`);
                 }
 
-                const newState = git.checkout(target);
-                setMaze(newState);
-                addLog(`Switched to '${target}'`);
+                // Use Page Flip Effect if available
+                if (requestFlip) {
+                    requestFlip(() => {
+                        const newState = git.checkout(target);
+                        setMaze(newState);
+                        addLog(`Switched to '${target}'`);
+                    });
+                } else {
+                    // Fallback to direct execution
+                    const newState = git.checkout(target);
+                    setMaze(newState);
+                    addLog(`Switched to '${target}'`);
+                }
             }
             else if (parts[0] === 'git' && parts[1] === 'commit') {
                 const msgMatch = cmd.match(/"([^"]+)"/);
                 const msg = msgMatch ? msgMatch[1] : (parts.slice(3).join(' ') || 'New commit');
 
+                // Commit current state
                 const commitId = git.commit(msg, currentMaze);
                 addLog(`[${commitId.substring(0, 7)}] ${msg}`);
             }
@@ -77,13 +92,22 @@ export class CommandHandler {
                 addLog(result);
             }
             else if (parts[0] === 'git' && parts[1] === 'reset') {
-                const mode = parts.includes('--soft') ? 'soft' : 'hard';
-                // target should be the first argument that isn't git, reset, or a flag
+                const mode = parts.includes('--hard') ? 'hard' : 'soft';
                 const target = parts.find(p => !p.startsWith('--') && p !== 'git' && p !== 'reset') || 'HEAD~1';
 
-                const newState = git.reset(target, mode, currentMaze);
-                setMaze(newState);
-                addLog(`Reset to ${target} (${mode})`);
+                // Use Tear Effect if available
+                if (requestTear) {
+                    requestTear(() => {
+                        const newState = git.reset(target, mode, currentMaze);
+                        setMaze(newState);
+                        addLog(`Reset to ${target} (${mode})`);
+                    });
+                } else {
+                    // Fallback to direct execution
+                    const newState = git.reset(target, mode, currentMaze);
+                    setMaze(newState);
+                    addLog(`Reset to ${target} (${mode})`);
+                }
             }
             else if (parts[0] === 'git' && parts[1] === 'push') {
                 await syncToBackend();

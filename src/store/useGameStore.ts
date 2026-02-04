@@ -24,6 +24,7 @@ interface GameState {
     // UI Effects
     visualEffect: 'none' | 'preparing-tear' | 'preparing-flip' | 'tearing' | 'flipping';
     pendingResetAction: (() => void) | null;
+    terminalHistory: string[];
 
     // Actions
     initialize: () => Promise<void>;
@@ -88,6 +89,7 @@ export const useGameStore = create<GameState>((set, get) => {
 
         git,
         currentMaze: INITIAL_PLACEHOLDER,
+        gitVersion: 0,
         terminalHistory: ['Welcome to gitMaze.', 'Initializing system...'],
         visualEffect: 'none',
         pendingResetAction: null,
@@ -196,9 +198,78 @@ export const useGameStore = create<GameState>((set, get) => {
                 console.error("Failed to sync state", e);
             }
         },
+        movePlayer: (dx: number, dz: number) => {
+            const { currentMaze } = get();
+            const { playerPosition, walls, width, height } = currentMaze;
+            const newX = playerPosition.x + dx;
+            const newZ = playerPosition.z + dz;
+
+            // 1. Boundary Check
+            if (newX < 0 || newX >= width || newZ < 0 || newZ >= height) return;
+
+            // 2. Wall Collision Check
+            // Check if there is a wall between (currentX, currentZ) and (newX, newZ)
+            // If dx != 0, we are moving horizontally. Check vertical walls at newX (if moving right) or currentX (if moving left)
+            // If dz != 0, we are moving vertically. Check horizontal walls at newZ (if moving down) or currentZ (if moving up)
+
+            const blocked = walls.some(wall => {
+                if (wall.opened) return false;
+
+                // Movement Logic:
+                // Moving Right (dx > 0): Checking Vertical wall at x = newX, z = currentZ
+                // Moving Left  (dx < 0): Checking Vertical wall at x = currentX, z = currentZ
+                // Moving Down  (dz > 0): Checking Horizontal wall at z = newZ, x = currentX
+                // Moving Up    (dz < 0): Checking Horizontal wall at z = currentZ, x = currentX
+
+                if (dx > 0) { // Moving Right -> Check Vertical Wall at newX
+                    return wall.type === 'VERTICAL' && wall.startX === newX && wall.startZ === newZ;
+                }
+                if (dx < 0) { // Moving Left -> Check Vertical Wall at currentX
+                    return wall.type === 'VERTICAL' && wall.startX === playerPosition.x && wall.startZ === playerPosition.z;
+                }
+                if (dz > 0) { // Moving Down -> Check Horizontal Wall at newZ
+                    return wall.type === 'HORIZONTAL' && wall.startZ === newZ && wall.startX === newX;
+                }
+                if (dz < 0) { // Moving Up -> Check Horizontal Wall at currentZ
+                    return wall.type === 'HORIZONTAL' && wall.startZ === playerPosition.z && wall.startX === playerPosition.x;
+                }
+                return false;
+            });
+
+            if (!blocked) {
+                set((state) => ({
+                    currentMaze: {
+                        ...state.currentMaze,
+                        playerPosition: { x: newX, z: newZ }
+                    }
+                }));
+
+                // Check Win Condition (Reach Bottom-Right)
+                console.log(`Checking Win: Pos(${newX}, ${newZ}) vs Goal(${width - 1}, ${height - 1})`);
+                if (newX === width - 1 && newZ === height - 1) {
+                    console.log("Game Cleared Triggered!");
+                    get().completeGame();
+                }
+            }
+        },
+
+        completeGame: async () => {
+            const { userId, startTime, commandCount } = get();
+            const playTime = Math.floor((Date.now() - startTime) / 1000); // seconds
+
+            set({ gameStatus: 'cleared', isSaving: true, saveError: null });
+
+            try {
+                await api.endGame(userId, commandCount, playTime);
+                set({ isSaving: false });
+            } catch (e) {
+                console.error("Failed to save game result", e);
+                set({ isSaving: false, saveError: "Failed to save result" });
+            }
+        },
 
         sendCommand: async (cmd: string) => {
-            const { git, syncToBackend, initialize } = get();
+            const { git, syncToBackend, initialize, requestFlip, requestTear } = get();
             const { addLog } = useTerminalStore.getState();
 
             // Special case for git pull as it needs store's initialize
@@ -213,7 +284,9 @@ export const useGameStore = create<GameState>((set, get) => {
                 currentMaze: get().currentMaze,
                 addLog,
                 setMaze: (maze) => set({ currentMaze: maze }),
-                syncToBackend
+                syncToBackend,
+                requestFlip,
+                requestTear
             });
 
             // Force re-render of components tracking the git engine
