@@ -21,6 +21,8 @@ interface GameState {
     git: GitEngine;
     currentMaze: MazeState;
     gitVersion: number;
+    currentStage: number;
+    currentCategory: 'tutorial' | 'main';
 
     // UI Effects
     visualEffect: 'none' | 'preparing-tear' | 'preparing-flip' | 'tearing' | 'flipping';
@@ -34,6 +36,8 @@ interface GameState {
     movePlayer: (dx: number, dz: number) => void;
     addLog: (log: string) => void;
     loadTutorial: (level: number) => Promise<void>;
+    loadStage: (category: string, level: number) => Promise<void>;
+    nextStage: () => Promise<void>;
 
 
     // Tearing Flow (Reset)
@@ -92,6 +96,8 @@ export const useGameStore = create<GameState>((set, get) => {
         git,
         currentMaze: INITIAL_PLACEHOLDER,
         gitVersion: 0,
+        currentStage: 1,
+        currentCategory: 'main',
         terminalHistory: ['Welcome to gitMaze.', 'Initializing system...'],
         visualEffect: 'none',
         pendingResetAction: null,
@@ -163,9 +169,9 @@ export const useGameStore = create<GameState>((set, get) => {
                     });
                     addLog('Session restored. Type "help" for commands.');
                 } else {
-                    // 2. 새로운 미로 생성 (서버 장애 시 로컬 fallback 작동)
-                    addLog('Generating spacetime maze...');
-                    const newMazeData = await api.getNewMaze(6, 6);
+                    // 2. 새로운 미로 생성 (스테이지 1)
+                    addLog('Loading spacetime stage 1...');
+                    const newMazeData = await api.getNewMaze(1);
 
                     const newGit = new GitEngine(newMazeData);
 
@@ -173,7 +179,9 @@ export const useGameStore = create<GameState>((set, get) => {
                         git: newGit,
                         currentMaze: newGit.getCurrentState(),
                         isLoading: false,
-                        gitVersion: get().gitVersion + 1
+                        gitVersion: get().gitVersion + 1,
+                        currentStage: 1,
+                        currentCategory: 'main'
                     });
 
                     addLog('Ready. Type "help" to start.');
@@ -189,14 +197,17 @@ export const useGameStore = create<GameState>((set, get) => {
         },
 
         loadTutorial: async (level: number) => {
+            return get().loadStage('tutorial', level);
+        },
+
+        loadStage: async (category: string, level: number) => {
             const { git, addLog } = get();
             set({ isLoading: true, error: null });
 
             try {
-                addLog(`Loading tutorial stage ${level}...`);
-                const mazeData = await api.getTutorialMaze(level);
+                addLog(`Loading ${category} stage ${level}...`);
+                const mazeData = await api.getStage(category, level);
 
-                // Reset Git engine with new tutorial maze
                 const newGit = new GitEngine(mazeData);
 
                 set({
@@ -206,14 +217,21 @@ export const useGameStore = create<GameState>((set, get) => {
                     gitVersion: get().gitVersion + 1,
                     gameStatus: 'playing',
                     startTime: Date.now(),
-                    commandCount: 0
+                    commandCount: 0,
+                    currentStage: level,
+                    currentCategory: category as 'tutorial' | 'main'
                 });
 
-                addLog(`Tutorial ${level} ready. Good luck!`);
+                addLog(`Stage ${category} ${level} ready.`);
             } catch (err) {
-                console.error("Tutorial load failed:", err);
-                set({ isLoading: false, error: "Failed to load tutorial" });
+                console.error("Stage load failed:", err);
+                set({ isLoading: false, error: "Failed to load stage" });
             }
+        },
+
+        nextStage: async () => {
+            const { currentStage, currentCategory, loadStage } = get();
+            await loadStage(currentCategory, currentStage + 1);
         },
 
         syncToBackend: async () => {
@@ -313,7 +331,9 @@ export const useGameStore = create<GameState>((set, get) => {
                 syncToBackend,
                 requestFlip,
                 requestTear,
-                loadTutorial: get().loadTutorial
+                loadTutorial: get().loadTutorial,
+                loadStage: get().loadStage,
+                nextStage: get().nextStage
             });
 
             // Force re-render of components tracking the git engine

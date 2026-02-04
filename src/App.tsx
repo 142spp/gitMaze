@@ -9,7 +9,12 @@ import { useGameStore } from './store/useGameStore';
 
 
 const App: React.FC = () => {
-    const loadTutorial = useGameStore(state => state.loadTutorial);
+    const loadStage = useGameStore(state => state.loadStage);
+    const nextStage = useGameStore(state => state.nextStage);
+    const { currentCategory, currentStage } = useGameStore(state => ({
+        currentCategory: state.currentCategory,
+        currentStage: state.currentStage
+    }));
 
     return (
         <div
@@ -76,17 +81,46 @@ const App: React.FC = () => {
                 </button>
             </div>
 
-            {/* Tutorial Test Buttons (Temporary) */}
+            {/* Tutorial & Stage Test Buttons (Temporary) */}
             <div className="absolute top-10 right-10 flex flex-col gap-2 z-50">
-                {[1, 2, 3, 4].map(lv => (
-                    <button
-                        key={lv}
-                        onClick={() => loadTutorial(lv)}
-                        className="px-4 py-2 bg-amber-900/80 text-white rounded-lg shadow-lg hover:bg-amber-800 transition-colors text-xs font-bold"
-                    >
-                        TUTORIAL {lv}
-                    </button>
-                ))}
+                <div className="text-[10px] font-bold text-amber-900/40 mb-1 ml-2">TUTORIALS</div>
+                <div className="flex gap-2 mb-2">
+                    {[1, 2, 3, 4].map(lv => (
+                        <button
+                            key={lv}
+                            onClick={() => loadStage('tutorial', lv)}
+                            className={`w-8 h-8 flex items-center justify-center rounded-lg shadow-lg transition-colors text-xs font-bold ${currentCategory === 'tutorial' && currentStage === lv
+                                ? 'bg-amber-600 text-white'
+                                : 'bg-amber-900/60 text-white hover:bg-amber-800'
+                                }`}
+                        >
+                            {lv}
+                        </button>
+                    ))}
+                </div>
+
+                <div className="text-[10px] font-bold text-amber-900/40 mb-1 ml-2">MAIN STAGES</div>
+                <div className="flex gap-2">
+                    {[1, 2].map(lv => (
+                        <button
+                            key={lv}
+                            onClick={() => loadStage('main', lv)}
+                            className={`w-8 h-8 flex items-center justify-center rounded-lg shadow-lg transition-colors text-xs font-bold ${currentCategory === 'main' && currentStage === lv
+                                ? 'bg-amber-600 text-white'
+                                : 'bg-amber-900/60 text-white hover:bg-amber-800'
+                                }`}
+                        >
+                            {lv}
+                        </button>
+                    ))}
+                </div>
+
+                <button
+                    onClick={() => nextStage()}
+                    className="mt-4 px-4 py-2 bg-green-800/80 text-white rounded-lg shadow-lg hover:bg-green-700 transition-colors text-xs font-bold uppercase tracking-widest"
+                >
+                    Next Stage →
+                </button>
             </div>
         </div>
     )

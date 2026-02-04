@@ -24,15 +24,14 @@ export const api = {
      * @param height 미로 세로 크기
      * @returns 생성된 미로 상태 데이터
      */
-    getNewMaze: async (width: number = 6, height: number = 6): Promise<MazeState> => {
+    getNewMaze: async (level: number = 1): Promise<MazeState> => {
         try {
-            const response = await fetch(`${API_BASE_URL}/maze/generate?width=${width}&height=${height}`);
+            const response = await fetch(`${API_BASE_URL}/maze/generate?level=${level}`);
             if (!response.ok) {
-                throw new Error(`Failed to generate maze: ${response.statusText}`);
+                throw new Error(`Failed to generate maze stage: ${level}`);
             }
             return response.json();
         } catch (err) {
-            // 오프라인 상태인 경우 로컬의 initialMaze.json 데이터를 반환
             if (isOfflineError(err)) {
                 console.warn("Backend offline. Using initialMaze.json fallback.");
                 return initialMaze as MazeState;
@@ -42,21 +41,33 @@ export const api = {
     },
 
     /**
+     * 특정 스테이지의 미로 데이터를 가져옵니다.
+     * @param category 'tutorial' 또는 'main'
+     * @param level 스테이지 레벨
+     */
+    getStage: async (category: string, level: number): Promise<MazeState> => {
+        try {
+            const response = await fetch(`${API_BASE_URL}/maze/stage/${category}/${level}`);
+            if (!response.ok) {
+                // If stage not found, try to fallback or throw
+                if (response.status === 404) {
+                    return api.getNewMaze(1); // Default to Stage 1
+                }
+                throw new Error(`Failed to fetch stage: ${category} ${level}`);
+            }
+            return response.json();
+        } catch (err) {
+            console.error("Failed to fetch stage:", err);
+            return initialMaze as MazeState;
+        }
+    },
+
+    /**
      * 특정 튜토리얼 레벨의 미로 데이터를 가져옵니다.
      * @param level 튜토리얼 레벨 (1-4)
      */
     getTutorialMaze: async (level: number): Promise<MazeState> => {
-        try {
-            const response = await fetch(`${API_BASE_URL}/maze/tutorial/${level}`);
-            if (!response.ok) {
-                throw new Error(`Failed to fetch tutorial maze: ${level}`);
-            }
-            return response.json();
-        } catch (err) {
-            console.error("Failed to fetch tutorial:", err);
-            // Fallback: simple 6x6 if error
-            return initialMaze as MazeState;
-        }
+        return api.getStage('tutorial', level);
     },
 
     /**

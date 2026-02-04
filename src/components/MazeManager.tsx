@@ -42,6 +42,8 @@ export const MazeManager: React.FC = () => {
         if (floorRef.current) {
             floorTransforms.forEach((pos, i) => {
                 tempObject.position.set(pos.x + 0.5, -0.25, pos.z + 0.5)
+                tempObject.rotation.set(0, 0, 0)
+                tempObject.scale.set(1, 1, 1)
                 tempObject.updateMatrix()
                 floorRef.current!.setMatrixAt(i, tempObject.matrix)
 
@@ -58,28 +60,22 @@ export const MazeManager: React.FC = () => {
         if (wallRef.current) {
             let activeWallIndex = 0;
             walls.forEach((wall) => {
-                if (wall.opened) return; // 열린 벽(문)은 렌더링하지 않음
+                if (wall.opened) return;
 
-                // Skip Outer Walls (Boundary)
-                // Vertical walls at x=0 or x=width
                 if (wall.type === 'VERTICAL' && (wall.startX === 0 || wall.startX === width)) return;
-                // Horizontal walls at z=0 or z=height
                 if (wall.type === 'HORIZONTAL' && (wall.startZ === 0 || wall.startZ === height)) return;
 
-                // Calculate center position
-                // Logic: (startX + endX) / 2, (startZ + endZ) / 2
                 const cx = (wall.startX + wall.endX) / 2;
                 const cz = (wall.startZ + wall.endZ) / 2;
                 tempObject.position.set(cx, 0.5, cz);
 
-                // 벽의 방향에 따라 회전 (HORIZONTAL / VERTICAL)
                 if (wall.type === 'HORIZONTAL') {
                     tempObject.rotation.set(0, Math.PI / 2, 0)
                 } else {
                     tempObject.rotation.set(0, 0, 0)
                 }
 
-                tempObject.scale.set(0.2, 0.9, 1.1) // Thickness, Height, Length
+                tempObject.scale.set(0.15, 0.9, 1.05) // Optimized Thickness, Height, Length
                 tempObject.updateMatrix()
                 wallRef.current!.setMatrixAt(activeWallIndex, tempObject.matrix)
 
@@ -88,7 +84,7 @@ export const MazeManager: React.FC = () => {
                 activeWallIndex++;
             })
 
-            // 사용하지 않는 인스턴스는 화면 밖으로 이동
+            // 사용하지 않는 인스턴스 숨기기
             for (let j = activeWallIndex; j < walls.length; j++) {
                 tempObject.position.set(0, -999, 0)
                 tempObject.updateMatrix()
@@ -103,6 +99,8 @@ export const MazeManager: React.FC = () => {
         if (gemRef.current) {
             items.forEach((item, i) => {
                 tempObject.position.set(item.x + 0.5, 0.5, item.z + 0.5)
+                tempObject.rotation.set(0, 0, 0)
+                tempObject.scale.set(0.3, 0.3, 0.3) // Gems should be smaller
                 tempObject.updateMatrix()
                 gemRef.current!.setMatrixAt(i, tempObject.matrix)
 
@@ -116,7 +114,7 @@ export const MazeManager: React.FC = () => {
     }, [width, height, walls, items, floorTransforms])
 
     /**
-     * 프레임 루프(useFrame): 아이템에 떠 있는 애니메이션 효과를 부여합니다.
+     * 프레임 루프(useFrame): 아이템에 애니메이션 부여
      */
     useFrame((state) => {
         if (gemRef.current) {
@@ -125,6 +123,7 @@ export const MazeManager: React.FC = () => {
                 const yOffset = Math.sin(time * 2 + i) * 0.1
                 tempObject.position.set(item.x + 0.5, 0.5 + yOffset, item.z + 0.5)
                 tempObject.rotation.y += 0.02
+                tempObject.scale.set(0.3, 0.3, 0.3) // Keep scale consistent
                 tempObject.updateMatrix()
                 gemRef.current!.setMatrixAt(i, tempObject.matrix)
             })

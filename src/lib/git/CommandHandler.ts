@@ -10,6 +10,8 @@ export interface CommandContext {
     requestFlip?: (action: () => void) => void;
     requestTear?: (action: () => void) => void;
     loadTutorial?: (level: number) => Promise<void>;
+    loadStage?: (category: string, level: number) => Promise<void>;
+    nextStage?: () => Promise<void>;
 }
 
 export class CommandHandler {
@@ -129,6 +131,35 @@ export class CommandHandler {
                     await context.loadTutorial(level);
                 } else {
                     throw new Error('Tutorial loading not available in this context');
+                }
+            }
+            else if (parts[0] === 'git' && parts[1] === 'stage') {
+                const category = parts[2];
+                const level = parseInt(parts[3]);
+                if (!category || (category !== 'tutorial' && category !== 'main')) {
+                    throw new Error('Usage: git stage <tutorial|main> <level>');
+                }
+                if (isNaN(level) || level < 1) {
+                    throw new Error('Level must be a positive number.');
+                }
+                if (context.loadStage) {
+                    await context.loadStage(category, level);
+                } else {
+                    throw new Error('Stage loading not available');
+                }
+            }
+            else if (parts[0] === 'git' && parts[1] === 'next') {
+                if (context.nextStage) {
+                    // We use flip animation for stage transition
+                    if (context.requestFlip) {
+                        context.requestFlip(async () => {
+                            await context.nextStage!();
+                        });
+                    } else {
+                        await context.nextStage();
+                    }
+                } else {
+                    throw new Error('Next stage not available');
                 }
             }
             else {
