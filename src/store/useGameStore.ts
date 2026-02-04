@@ -25,10 +25,12 @@ interface GameState {
     currentCategory: 'tutorial' | 'main';
 
     // UI Effects
-    visualEffect: 'none' | 'preparing-tear' | 'preparing-flip' | 'tearing' | 'flipping';
+    visualEffect: 'none' | 'preparing-tear' | 'preparing-flip' | 'tearing' | 'flipping' | 'moving-right';
     pendingResetAction: (() => void) | null;
     terminalHistory: string[];
     isFalling: boolean;
+    deathCount: number;
+    isDead: boolean;
 
     // Actions
     startGame: () => void;
@@ -107,17 +109,21 @@ export const useGameStore = create<GameState>((set, get) => {
         pendingResetAction: null,
         finalTime: null,
         isFalling: false,
+        deathCount: 0,
+        isDead: false,
 
         addLog: (log: string) => set((state) => ({ terminalHistory: [...state.terminalHistory, log] })),
 
         resetPlayerPosition: () => {
-            const { currentMaze } = get();
+            const { currentMaze, deathCount } = get();
             set({
                 currentMaze: {
                     ...currentMaze,
                     playerPosition: { x: currentMaze.startPos.x, z: currentMaze.startPos.z }
                 },
-                isFalling: false
+                isFalling: false,
+                deathCount: deathCount + 1,
+                isDead: false  // Revive player
             });
         },
 
@@ -143,25 +149,30 @@ export const useGameStore = create<GameState>((set, get) => {
 
         finishTear: () => set({ visualEffect: 'none' }),
 
-        // Page Flip Logic
+        // Page Flip Logic - Sequenced (Slide right then flip)
         requestFlip: (action) => {
-            set({ visualEffect: 'preparing-flip', pendingResetAction: action });
+            // 1. Move the book to the right
+            set({ visualEffect: 'moving-right' });
+
+            // Trigger action (gameStatus: 'playing') IMMEDIATELY during the slide
+            // so it starts rendering/initializing underneath the cover.
+            setTimeout(() => {
+                action();
+            }, 10);
+
+            // 2. After slide animation (600ms), start flipping
+            setTimeout(() => {
+                set({ visualEffect: 'flipping' });
+
+                // 3. After flip animation (1500ms), finish
+                setTimeout(() => {
+                    set({ visualEffect: 'none' });
+                }, 1500);
+            }, 600);
         },
 
         confirmFlip: () => {
-            // Only confirm if we are actually preparing for flip
-            if (get().visualEffect !== 'preparing-flip') return;
-
-            const { pendingResetAction } = get();
-            if (pendingResetAction) {
-                pendingResetAction();
-                set({ visualEffect: 'flipping', pendingResetAction: null });
-
-                // Cleanup
-                setTimeout(() => {
-                    set({ visualEffect: 'none' });
-                }, 1600); // Flip duration (1.5s + buffer)
-            }
+            // No longer needed, kept for compatibility
         },
 
         finishFlip: () => set({ visualEffect: 'none' }),
@@ -169,7 +180,6 @@ export const useGameStore = create<GameState>((set, get) => {
         startGame: () => {
             get().requestFlip(() => {
                 set({ gameStatus: 'playing' });
-                // Also trigger initialization if needed, but it might be better to do it separately or here
                 get().initialize();
             });
         },
@@ -243,7 +253,8 @@ export const useGameStore = create<GameState>((set, get) => {
                     startTime: Date.now(),
                     commandCount: 0,
                     currentStage: level,
-                    currentCategory: category as 'tutorial' | 'main'
+                    currentCategory: category as 'tutorial' | 'main',
+                    deathCount: 0
                 });
 
                 addLog(`Stage ${category} ${level} ready.`);
@@ -268,7 +279,11 @@ export const useGameStore = create<GameState>((set, get) => {
             }
         },
         movePlayer: (dx: number, dz: number) => {
-            const { currentMaze, completeGame } = get();
+            const { currentMaze, completeGame, isDead, isFalling } = get();
+
+            // Block movement if dead or falling
+            if (isDead || isFalling) return;
+
             const { playerPosition, walls, width, height, items, startPos, grid } = currentMaze;
 
             const targetX = playerPosition.x + dx;
@@ -405,7 +420,9 @@ export const useGameStore = create<GameState>((set, get) => {
                 requestTear,
                 loadTutorial: get().loadTutorial,
                 loadStage: get().loadStage,
-                nextStage: get().nextStage
+                nextStage: get().nextStage,
+                resetPlayerPosition: get().resetPlayerPosition,
+                isDead: get().isDead
             });
 
             // Force re-render of components tracking the git engine

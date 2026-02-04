@@ -12,7 +12,18 @@ const tempColor = new Color()
  */
 export const MazeManager: React.FC = () => {
     const currentMaze = useGameStore((state) => state.currentMaze)
-    const { width, height, walls, items, grid } = currentMaze
+    const deathCount = useGameStore((state) => state.deathCount)
+    const { width, height, walls, items } = currentMaze
+    const rawGrid = currentMaze.grid
+
+    // Process grid: reveal hidden tiles after death
+    const grid = useMemo(() => {
+        if (deathCount === 0) return rawGrid;
+
+        return rawGrid.map(row =>
+            row.map(cell => cell === 'hidden' ? 'solid' : cell)
+        );
+    }, [rawGrid, deathCount]);
 
     const wallRef = useRef<InstancedMesh>(null)
     const floorRef = useRef<InstancedMesh>(null)

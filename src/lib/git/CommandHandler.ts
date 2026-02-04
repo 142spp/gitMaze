@@ -12,6 +12,8 @@ export interface CommandContext {
     loadTutorial?: (level: number) => Promise<void>;
     loadStage?: (category: string, level: number) => Promise<void>;
     nextStage?: () => Promise<void>;
+    resetPlayerPosition?: () => void;
+    isDead?: boolean;
 }
 
 export class CommandHandler {
@@ -97,7 +99,14 @@ export class CommandHandler {
             }
             else if (parts[0] === 'git' && parts[1] === 'reset') {
                 const mode = parts.includes('--hard') ? 'hard' : 'soft';
-                const target = parts.find(p => !p.startsWith('--') && p !== 'git' && p !== 'reset') || 'HEAD~1';
+                const target = parts.find(p => !p.startsWith('--') && p !== 'git' && p !== 'reset') || 'HEAD';
+
+                // Check if player is dead - revive them
+                const { isDead, resetPlayerPosition } = context;
+                if (isDead && resetPlayerPosition) {
+                    resetPlayerPosition();
+                    addLog('You have been revived at the last checkpoint.');
+                }
 
                 // Use Tear Effect if available
                 if (requestTear) {
