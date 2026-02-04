@@ -1,25 +1,24 @@
-import React, { useMemo, useRef, useEffect } from 'react'
+import React, { useRef, useEffect, useMemo } from 'react'
 import { useFrame } from '@react-three/fiber'
-import { InstancedMesh, Object3D, Color, Vector3 } from 'three'
+import { InstancedMesh, Object3D, Color } from 'three'
 import { useGameStore } from '../store/useGameStore'
-import { Wall, Item } from '../lib/git/types'
 
 const tempObject = new Object3D()
 const tempColor = new Color()
 
 /**
- * MazeManager: 미로의 지형(바닥, 벽)과 아이템을 렌더링합니다.
- * 성능 최적화를 위해 InstancedMesh를 사용하여 수백 개의 오브젝트를 단일 Draw Call로 처리합니다.
+ * MazeManager: 타일 기반 퍼즐 지형과 아이템을 렌더링합니다.
+ * 성능 최적화를 위해 InstancedMesh를 사용합니다.
  */
 export const MazeManager: React.FC = () => {
     const currentMaze = useGameStore((state) => state.currentMaze)
-    const { width, height, walls, items } = currentMaze
+    const { width, height, walls, items, grid } = currentMaze
 
     const wallRef = useRef<InstancedMesh>(null)
     const floorRef = useRef<InstancedMesh>(null)
+    const pitRef = useRef<InstancedMesh>(null)
     const gemRef = useRef<InstancedMesh>(null)
 
-    // New Puzzle Refs
     const cubeBlockRef = useRef<InstancedMesh>(null)
     const sphereBlockRef = useRef<InstancedMesh>(null)
     const tetraBlockRef = useRef<InstancedMesh>(null)
@@ -29,35 +28,67 @@ export const MazeManager: React.FC = () => {
 
     const themeColor = '#2563eb'
 
-    const floorTransforms = useMemo(() => {
-        const t: { x: number, z: number }[] = []
-        for (let x = 0; x < width; x++) {
-            for (let z = 0; z < height; z++) {
-                t.push({ x, z })
+    // Calculate floor positions from grid
+    const floorTiles = useMemo(() => {
+        const solid: { x: number, z: number }[] = [];
+        const pits: { x: number, z: number }[] = [];
+
+        for (let z = 0; z < height; z++) {
+            for (let x = 0; x < width; x++) {
+                const tile = grid[z][x];
+                if (tile === 'solid') solid.push({ x, z });
+                else if (tile === 'pit') pits.push({ x, z });
             }
         }
-        return t
-    }, [width, height])
+        return { solid, pits };
+    }, [width, height, grid]);
 
     useEffect(() => {
-        // 1. Floor
+        // Solid Floors
         if (floorRef.current) {
-            floorTransforms.forEach((pos, i) => {
-                tempObject.position.set(pos.x + 0.5, -0.25, pos.z + 0.5)
-                tempObject.rotation.set(0, 0, 0)
-                tempObject.scale.set(1, 1, 1)
-                tempObject.updateMatrix()
-                floorRef.current!.setMatrixAt(i, tempObject.matrix)
-                const isEven = (pos.x + pos.z) % 2 === 0
-                tempColor.set(isEven ? '#f8fafc' : '#f1f5f9')
-                floorRef.current!.setColorAt(i, tempColor)
-            })
-            floorRef.current.instanceMatrix.needsUpdate = true
-            if (floorRef.current.instanceColor) floorRef.current.instanceColor.needsUpdate = true
+            floorTiles.solid.forEach((tile, i) => {
+                tempObject.position.set(tile.x + 0.5, -0.25, tile.z + 0.5);
+                tempObject.rotation.set(0, 0, 0);
+                tempObject.scale.set(1, 1, 1);
+                tempObject.updateMatrix();
+                floorRef.current!.setMatrixAt(i, tempObject.matrix);
+
+                // Color start position blue
+                const isStartPos = tile.x === currentMaze.startPos.x && tile.z === currentMaze.startPos.z;
+                tempColor.set(isStartPos ? '#3b82f6' : '#f1f5f9');
+                floorRef.current!.setColorAt(i, tempColor);
+            });
+            for (let j = floorTiles.solid.length; j < width * height; j++) {
+                tempObject.position.set(0, -999, 0);
+                tempObject.updateMatrix();
+                floorRef.current!.setMatrixAt(j, tempObject.matrix);
+            }
+            floorRef.current.instanceMatrix.needsUpdate = true;
+            if (floorRef.current.instanceColor) floorRef.current.instanceColor.needsUpdate = true;
         }
 
-        // 2. Walls
-        if (wallRef.current) {
+        // Pits
+        if (pitRef.current) {
+            floorTiles.pits.forEach((tile, i) => {
+                tempObject.position.set(tile.x + 0.5, -0.45, tile.z + 0.5);
+                tempObject.rotation.set(0, 0, 0);
+                tempObject.scale.set(0.9, 0.6, 0.9);
+                tempObject.updateMatrix();
+                pitRef.current!.setMatrixAt(i, tempObject.matrix);
+                tempColor.set('#1e293b');
+                pitRef.current!.setColorAt(i, tempColor);
+            });
+            for (let j = floorTiles.pits.length; j < width * height; j++) {
+                tempObject.position.set(0, -999, 0);
+                tempObject.updateMatrix();
+                pitRef.current!.setMatrixAt(j, tempObject.matrix);
+            }
+            pitRef.current.instanceMatrix.needsUpdate = true;
+            if (pitRef.current.instanceColor) pitRef.current.instanceColor.needsUpdate = true;
+        }
+
+        // Walls (legacy)
+        if (wallRef.current && walls.length > 0) {
             let activeWallIndex = 0;
             walls.forEach((wall) => {
                 if (wall.opened) return;
@@ -86,7 +117,7 @@ export const MazeManager: React.FC = () => {
             if (wallRef.current.instanceColor) wallRef.current.instanceColor.needsUpdate = true
         }
 
-        // 3. Items (Gems, Blocks, Plates)
+        // Helper function for item rendering
         const updateInstances = (ref: React.RefObject<InstancedMesh>, filter: (it: any) => boolean,
             setup: (obj: Object3D, item: any) => void, colorStr: string) => {
             if (!ref.current) return;
@@ -110,7 +141,7 @@ export const MazeManager: React.FC = () => {
             if (ref.current.instanceColor) ref.current.instanceColor.needsUpdate = true;
         };
 
-        // Gem
+        // Gems
         updateInstances(gemRef, it => it.type === 'star', (obj, it) => {
             obj.position.set(it.x + 0.5, 0.5, it.z + 0.5);
             obj.rotation.set(0, 0, 0);
@@ -137,10 +168,10 @@ export const MazeManager: React.FC = () => {
         updateInstances(spherePlateRef, it => it.type === 'plate_sphere', plateSetup, '#a7f3d0');
         updateInstances(tetraPlateRef, it => it.type === 'plate_tetra', plateSetup, '#ddd6fe');
 
-    }, [width, height, walls, items, floorTransforms])
+    }, [width, height, walls, items, grid, floorTiles])
 
     useFrame((state) => {
-        // Floating Gem animation
+        // Floating animation for gems
         if (gemRef.current) {
             let idx = 0;
             items.forEach((item) => {
@@ -161,19 +192,25 @@ export const MazeManager: React.FC = () => {
 
     return (
         <group>
-            {/* Floor */}
+            {/* Solid Floors */}
             <instancedMesh ref={floorRef} args={[undefined, undefined, width * height]} receiveShadow>
                 <boxGeometry args={[0.95, 0.5, 0.95]} />
-                <meshStandardMaterial color="#f1f5f9" />
+                <meshStandardMaterial color="white" />
             </instancedMesh>
 
-            {/* Walls */}
-            <instancedMesh ref={wallRef} args={[undefined, undefined, walls.length]} castShadow receiveShadow>
+            {/* Pits */}
+            <instancedMesh ref={pitRef} args={[undefined, undefined, width * height]} receiveShadow>
+                <boxGeometry args={[0.95, 0.5, 0.95]} />
+                <meshStandardMaterial color="white" />
+            </instancedMesh>
+
+            {/* Walls (legacy) */}
+            <instancedMesh ref={wallRef} args={[undefined, undefined, Math.max(walls.length, 1)]} castShadow receiveShadow>
                 <boxGeometry args={[1, 1, 1]} />
                 <meshStandardMaterial transparent opacity={0.9} metalness={0.8} roughness={0.2} />
             </instancedMesh>
 
-            {/* Puzzle Items */}
+            {/* Gems */}
             <instancedMesh ref={gemRef} args={[undefined, undefined, items.length]} castShadow>
                 <octahedronGeometry args={[1, 0]} />
                 <meshStandardMaterial emissive="#f59e0b" emissiveIntensity={1} color="#f59e0b" />
@@ -193,7 +230,7 @@ export const MazeManager: React.FC = () => {
                 <meshStandardMaterial color="white" />
             </instancedMesh>
 
-            {/* Plates (Translucent markers on floor) */}
+            {/* Plates */}
             <instancedMesh ref={cubePlateRef} args={[undefined, undefined, items.length]} receiveShadow>
                 <boxGeometry args={[1, 1, 1]} />
                 <meshStandardMaterial transparent opacity={0.5} color="white" />
@@ -209,4 +246,3 @@ export const MazeManager: React.FC = () => {
         </group>
     )
 }
-

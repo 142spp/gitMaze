@@ -28,12 +28,14 @@ interface GameState {
     visualEffect: 'none' | 'preparing-tear' | 'preparing-flip' | 'tearing' | 'flipping';
     pendingResetAction: (() => void) | null;
     terminalHistory: string[];
+    isFalling: boolean;
 
     // Actions
     initialize: () => Promise<void>;
     sendCommand: (cmd: string) => Promise<void>;
     completeGame: () => Promise<void>;
     movePlayer: (dx: number, dz: number) => void;
+    resetPlayerPosition: () => void;
     addLog: (log: string) => void;
     loadTutorial: (level: number) => Promise<void>;
     loadStage: (category: string, level: number) => Promise<void>;
@@ -71,8 +73,9 @@ const getUserId = () => {
 
 // Initial Placeholder State
 const INITIAL_PLACEHOLDER: MazeState = {
-    width: 6,
-    height: 6,
+    width: 0,
+    height: 0,
+    grid: [],
     walls: [],
     items: [],
     startPos: { x: 0, z: 0 },
@@ -102,8 +105,20 @@ export const useGameStore = create<GameState>((set, get) => {
         visualEffect: 'none',
         pendingResetAction: null,
         finalTime: null,
+        isFalling: false,
 
         addLog: (log: string) => set((state) => ({ terminalHistory: [...state.terminalHistory, log] })),
+
+        resetPlayerPosition: () => {
+            const { currentMaze } = get();
+            set({
+                currentMaze: {
+                    ...currentMaze,
+                    playerPosition: { x: currentMaze.startPos.x, z: currentMaze.startPos.z }
+                },
+                isFalling: false
+            });
+        },
 
         requestTear: (action) => {
             set({ visualEffect: 'preparing-tear', pendingResetAction: action });
@@ -245,7 +260,7 @@ export const useGameStore = create<GameState>((set, get) => {
         },
         movePlayer: (dx: number, dz: number) => {
             const { currentMaze, completeGame } = get();
-            const { playerPosition, walls, width, height, items } = currentMaze;
+            const { playerPosition, walls, width, height, items, startPos, grid } = currentMaze;
 
             const targetX = playerPosition.x + dx;
             const targetZ = playerPosition.z + dz;
@@ -253,7 +268,11 @@ export const useGameStore = create<GameState>((set, get) => {
             // 1. Boundary Check for Player
             if (targetX < 0 || targetX >= width || targetZ < 0 || targetZ >= height) return;
 
-            // 2. Wall Collision Check Function
+            // 2. Floor Tile Check (must have floor to move)
+            const targetFloorType = grid[targetZ][targetX];
+            if (targetFloorType === 'void') return; // No floor tile = void, cannot move
+
+            // 3. Wall Collision Check Function
             const isWallBlocking = (x: number, z: number, moveDirX: number, moveDirZ: number) => {
                 return walls.some(wall => {
                     if (wall.opened) return false;
@@ -280,6 +299,10 @@ export const useGameStore = create<GameState>((set, get) => {
                 // Block Boundary Check
                 if (nextBlockX < 0 || nextBlockX >= width || nextBlockZ < 0 || nextBlockZ >= height) return;
 
+                // Block Floor Check (can only push blocks onto solid floor)
+                const blockTargetFloorType = grid[nextBlockZ][nextBlockX];
+                if (blockTargetFloorType !== 'solid') return; // Cannot push block to pit or void
+
                 // Block Wall Check
                 if (isWallBlocking(block.x, block.z, dx, dz)) return;
 
@@ -291,6 +314,20 @@ export const useGameStore = create<GameState>((set, get) => {
             }
 
             // 4. Update State
+            // 5. Pit Check (if player moved to pit, trigger falling animation)
+            if (targetFloorType === 'pit') {
+                set({
+                    currentMaze: {
+                        ...currentMaze,
+                        playerPosition: { x: targetX, z: targetZ },
+                        items: updatedItems
+                    },
+                    isFalling: true
+                });
+                return; // Exit early, Player component will handle reset after animation
+            }
+
+            // Normal move (not pit)
             set((state) => ({
                 currentMaze: {
                     ...state.currentMaze,
@@ -299,24 +336,27 @@ export const useGameStore = create<GameState>((set, get) => {
                 }
             }));
 
-            // 5. Check Win Condition
-            const hasPlates = updatedItems.some(it => it.type.startsWith('plate_'));
+            // 6. Check Win Condition (only if not on pit)
+            if (targetFloorType !== 'pit') {
+                const hasPlates = updatedItems.some(it => it.type.startsWith('plate_'));
 
-            if (hasPlates) {
-                // Puzzle Win: All plates must have matching blocks
-                const plates = updatedItems.filter(it => it.type.startsWith('plate_'));
-                const allSatisfied = plates.every(plate => {
-                    const shape = plate.type.split('_')[1]; // cube, sphere, tetra
-                    return updatedItems.some(it => it.type === `block_${shape}` && it.x === plate.x && it.z === plate.z);
-                });
+                if (hasPlates) {
+                    // Puzzle Win: All plates must have matching blocks
+                    const plates = updatedItems.filter(it => it.type.startsWith('plate_'));
+                    const allSatisfied = plates.every(plate => {
+                        const shape = plate.type.split('_')[1]; // cube, sphere, tetra
+                        return updatedItems.some(it => it.type === `block_${shape}` && it.x === plate.x && it.z === plate.z);
+                    });
 
-                if (allSatisfied) {
-                    completeGame();
-                }
-            } else {
-                // Classic Win: Reach Bottom-Right
-                if (targetX === width - 1 && targetZ === height - 1) {
-                    completeGame();
+                    if (allSatisfied) {
+                        completeGame();
+                    }
+                } else {
+                    // Classic Win: Collect all stars
+                    const remainingStars = updatedItems.filter(it => it.type === 'star');
+                    if (remainingStars.length === 0) {
+                        completeGame();
+                    }
                 }
             }
         },

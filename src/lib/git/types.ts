@@ -27,15 +27,15 @@ export interface Item {
 export interface MazeState {
     width: number;
     height: number;
-    minCommands?: number; // Added for game stats
+    grid: string[][]; // Floor types: "solid", "pit", "void"
+    minCommands?: number;
     walls: Wall[];
     items: Item[];
-    startPos: { x: number; y: number } | { x: number; z: number }; // User JSON has startPos.x/z but we use x/y historically, let's normalize to x/z in future or adapt. User JSON said "startPos": { "x": 0, "z": 0 }
+    startPos: { x: number; z: number };
 
-    // Player state (Session state, might not be in JSON but needed for runtime)
+    // Player state
     playerPosition: { x: number, z: number };
     inventory: string[];
-    // Puzzle state
     flags: Record<string, boolean>;
 }
 

@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react'
+import React, { useRef, useEffect, useState } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { useGameStore } from '../store/useGameStore'
 import { Group } from 'three'
@@ -8,6 +8,11 @@ export const Player: React.FC = () => {
     const groupRef = useRef<Group>(null)
     const currentMaze = useGameStore((state) => state.currentMaze)
     const playerPosition = currentMaze.playerPosition
+    const isFalling = useGameStore((state) => state.isFalling)
+    const resetPlayerPosition = useGameStore((state) => state.resetPlayerPosition)
+    const fallVelocity = useRef(0)
+    const currentY = useRef(0.05)
+    const fallingStarted = useRef(false)
 
     // Load GLB
     const { scene, animations } = useGLTF('/player.glb')
@@ -27,9 +32,44 @@ export const Player: React.FC = () => {
         }
     }, [actions]);
 
+    // Pit Falling Animation
+    useEffect(() => {
+        if (isFalling) {
+            // Reset velocity and flag
+            fallVelocity.current = 0;
+            fallingStarted.current = false;
+            currentY.current = 0.05; // Start at normal height
+
+            // Start falling after 200ms delay
+            const startFallTimer = setTimeout(() => {
+                fallingStarted.current = true;
+            }, 200);
+
+            // Reset after animation completes
+            const resetTimer = setTimeout(() => {
+                currentY.current = 0.05;
+                fallVelocity.current = 0;
+                fallingStarted.current = false;
+                resetPlayerPosition();
+            }, 1400); // 200ms delay + 1200ms fall
+
+            return () => {
+                clearTimeout(startFallTimer);
+                clearTimeout(resetTimer);
+            };
+        } else {
+            currentY.current = 0.05;
+            fallVelocity.current = 0;
+            fallingStarted.current = false;
+        }
+    }, [isFalling, resetPlayerPosition]);
+
     // Keyboard Controls
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
+            // Block input during falling animation
+            if (isFalling) return;
+
             // Prevent scrolling
             if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].indexOf(e.code) > -1) {
                 e.preventDefault();
@@ -40,21 +80,16 @@ export const Player: React.FC = () => {
 
             if (e.code === 'ArrowUp') {
                 dz = -1;
-                targetRotationY.current = Math.PI; // Back (facing camera usually vs world) - actually world Z- is "up" in grid?
-                // In 3D: Z decrease is often "forward/up" on screen depending on camera.
-                // Let's assume standard top-down:
-                // Up (Z-) -> Rotate to PI (180) or 0? 
-                // Let's test: 0 is usually facing +Z. PI is -Z. 
-                targetRotationY.current = Math.PI; // Face North
+                targetRotationY.current = Math.PI;
             } else if (e.code === 'ArrowDown') {
                 dz = 1;
-                targetRotationY.current = 0; // Face South
+                targetRotationY.current = 0;
             } else if (e.code === 'ArrowLeft') {
                 dx = -1;
-                targetRotationY.current = -Math.PI / 2; // Face West
+                targetRotationY.current = -Math.PI / 2;
             } else if (e.code === 'ArrowRight') {
                 dx = 1;
-                targetRotationY.current = Math.PI / 2; // Face East
+                targetRotationY.current = Math.PI / 2;
             }
 
             if (dx !== 0 || dz !== 0) {
@@ -64,30 +99,37 @@ export const Player: React.FC = () => {
 
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [movePlayer]);
+    }, [movePlayer, isFalling]);
 
     useFrame((state, delta) => {
         if (groupRef.current) {
-            // Sync position with smoothing
-            groupRef.current.position.lerp({
-                x: playerPosition.x + 0.5,
-                y: 0.05,
-                z: playerPosition.z + 0.5
-            }, 0.2) // Faster lerp for responsive movement
+            const targetX = playerPosition.x + 0.5;
+            const targetZ = playerPosition.z + 0.5;
+
+            // Position handling
+            if (isFalling && fallingStarted.current) {
+                // Apply gravity acceleration (falling has started)
+                fallVelocity.current += 9.8 * delta * 0.5;
+                currentY.current -= fallVelocity.current * delta;
+                groupRef.current.position.set(targetX, currentY.current, targetZ);
+            } else {
+                // Normal lerp movement (including moving to pit before falling)
+                groupRef.current.position.lerp({
+                    x: targetX,
+                    y: isFalling && !fallingStarted.current ? 0.05 : 0.05,
+                    z: targetZ
+                }, 0.2);
+            }
 
             // Smooth Rotation
-            // Shortest path rotation logic
             let rotationDiff = targetRotationY.current - groupRef.current.rotation.y;
-            // Normalize to -PI ~ PI
             while (rotationDiff > Math.PI) rotationDiff -= Math.PI * 2;
             while (rotationDiff < -Math.PI) rotationDiff += Math.PI * 2;
 
-            groupRef.current.rotation.y += rotationDiff * delta * 10; // Fast rotation
+            groupRef.current.rotation.y += rotationDiff * delta * 10;
 
-            // Bobbing only when idle? No, maybe always slight or walk cycle?
-            // If moving, we rely on GLB animation (if we had walk cycle).
-            // For now just constant idle bob
-            if (!animations.length) {
+            // Bobbing only when not falling
+            if (!isFalling && !animations.length) {
                 groupRef.current.position.y = 0.05 + Math.sin(state.clock.elapsedTime * 5) * 0.05
             }
         }
