@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { useFrame } from '@react-three/fiber';
 import { InstancedMesh, Object3D, Color } from 'three';
 import { useRef, useEffect } from 'react';
+import { MeshDistortMaterial } from '@react-three/drei';
 
 interface WorldEnvironmentProps {
     mazeWidth: number;
@@ -92,9 +93,16 @@ export const WorldEnvironment: React.FC<WorldEnvironmentProps> = ({ mazeWidth, m
     return (
         <group>
             {/* Sea Plane */}
-            <mesh rotation={[-Math.PI / 2, 0, 0]} position={[mazeWidth / 2, -1.0, mazeHeight / 2]} receiveShadow>
-                <planeGeometry args={[SEA_SIZE, SEA_SIZE]} />
-                <meshStandardMaterial color="#60a5fa" transparent opacity={0.8} /> {/* Cute Blue (Reverted) */}
+            <mesh rotation={[-Math.PI / 2, 0, 0]} position={[mazeWidth / 2, -0.2, mazeHeight / 2]} receiveShadow>
+                <planeGeometry args={[SEA_SIZE, SEA_SIZE, 64, 64]} />
+                <MeshDistortMaterial
+                    color="#60a5fa"
+                    transparent
+                    opacity={0.8}
+                    speed={2}
+                    distort={0.15}
+                    radius={1}
+                />
             </mesh>
 
             {/* Mountains (Cones) */}

@@ -16,6 +16,7 @@ export interface CommandContext {
     resetPlayerPosition?: () => void;
     isDead?: boolean;
     requestCommit?: (msg: string) => Promise<void>;
+    checkWinCondition?: () => void;
 }
 
 export class CommandHandler {
@@ -120,7 +121,9 @@ export class CommandHandler {
                 if (!target) throw new Error('Merge target branch required');
                 else if (!git.getBranches().includes(target)) throw new Error('Target branch not found');
                 const result = git.merge(target);
+                setMaze(git.getCurrentState());
                 addLog(result);
+                if (context.checkWinCondition) context.checkWinCondition();
             }
             else if (parts[0] === 'git' && parts[1] === 'reset') {
                 const mode = parts.includes('--soft') ? 'soft' : 'hard';

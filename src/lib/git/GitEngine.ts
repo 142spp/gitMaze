@@ -112,6 +112,10 @@ export class GitEngine {
         this.graph.branchColors.set(name, BRANCH_COLOR_PALETTE[nextColorIndex]);
     }
 
+    branch(name: string): void {
+        this.createBranch(name);
+    }
+
     /**
      * 존재하는 모든 차원(브랜치)의 이름을 반환합니다.
      */
@@ -215,15 +219,75 @@ export class GitEngine {
             return 'Already up to date.';
         }
 
+        const sourceSnapshot = this.graph.commits.get(sourceCommitId)!.snapshot;
+        const targetSnapshot = this.graph.commits.get(targetCommitId)!.snapshot;
+        const usedItemIds = new Set<string>();
+
+        // 1. Merge Grid (Pit Filling Logic)
+        const mergedGrid = sourceSnapshot.grid.map((row, z) => {
+            const rowArr = typeof row === 'string' ? row.split('') : [...row];
+            const targetRow = targetSnapshot.grid[z];
+            const targetRowArr = typeof targetRow === 'string' ? targetRow.split('') : targetRow as string[];
+
+            return rowArr.map((cell, x) => {
+                const targetCell = targetRowArr[x];
+
+                // Case: Source is Pit
+                if (cell === 'pit') {
+                    // 1. Check if Target Branch has a BLOCK at this location
+                    const block = targetSnapshot.items.find(it =>
+                        it.x === x && it.z === z && it.type.startsWith('block_')
+                    );
+
+                    if (block) {
+                        // Merge Success: Block fills the pit!
+                        usedItemIds.add(block.id);
+                        return 'filled_' + block.type; // e.g. filled_block_cube
+                    }
+
+                    // 2. Fallback: If target already filled it (from previous merges)
+                    if (targetCell.startsWith('filled_')) return targetCell;
+                }
+
+                return cell;
+            });
+        });
+
+        // 2. Merge Items (Union of Source + Target, minus Used)
+        // We bring blocks from the branch into main.
+        const allItems = [...sourceSnapshot.items];
+        targetSnapshot.items.forEach(tItem => {
+            // Add if not present (by ID) -- Assuming IDs are consistent
+            if (!allItems.some(a => a.id === tItem.id)) {
+                allItems.push(tItem);
+            } else {
+                // If present in both, update position to target's position?
+                // Git logic: Last changed? target is 'theirs', source is 'ours'.
+                // Usually merge keeps 'ours' unless conflict?
+                // Here, if I moved block in Branch, I want that move to reflect in Main.
+                // So Update to `tItem` if `tItem` is "newer"?
+                // We don't track timestamps per item.
+                // Let's assume Target beats Source (Incoming Change).
+                const idx = allItems.findIndex(a => a.id === tItem.id);
+                allItems[idx] = tItem;
+            }
+        });
+
+        const mergedItems = allItems.filter(it => !usedItemIds.has(it.id));
+
         // Merge Commit 생성 (두 부모를 가짐)
         const currentBranch = this.graph.HEAD.type === 'branch' ? this.graph.HEAD.ref : 'detached';
+        const newSnapshot = this.cloneState(sourceSnapshot);
+        newSnapshot.grid = mergedGrid;
+        newSnapshot.items = mergedItems;
+
         const newCommit: CommitNode = {
             id: this.generateHash(),
             message: `Merge branch '${targetBranch}' into ${currentBranch}`,
             parents: [sourceCommitId, targetCommitId],
             timestamp: Date.now(),
             branch: currentBranch,
-            snapshot: this.cloneState(this.graph.commits.get(sourceCommitId)!.snapshot),
+            snapshot: newSnapshot,
         };
 
         this.graph.commits.set(newCommit.id, newCommit);
@@ -366,5 +430,8 @@ export class GitEngine {
      */
     private generateHash(): string {
         return Math.random().toString(16).substring(2, 4);
+    }
+    public getCurrentBranch(): string {
+        return this.graph.HEAD.type === 'branch' ? this.graph.HEAD.ref : 'HEAD';
     }
 }

@@ -125,7 +125,7 @@ const App: React.FC = () => {
 
                 <div className="text-[10px] font-bold text-amber-900/40 mb-1 ml-2">MAIN STAGES</div>
                 <div className="flex gap-2">
-                    {[1, 2, 3].map(lv => (
+                    {[1, 2, 3, 4].map(lv => (
                         <button
                             key={lv}
                             onClick={() => loadStage('main', lv)}

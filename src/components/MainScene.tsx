@@ -117,7 +117,8 @@ export const MainScene: React.FC = () => {
                                 {/* 미로 지형 관리자 */}
                                 <MazeManager />
                                 {/* 보조 그리드 가이드 */}
-                                <Grid
+                                {/* 보조 그리드 가이드 (Removed for cleaner look) */}
+                                {/* <Grid
                                     infiniteGrid
                                     fadeDistance={70}
                                     fadeStrength={2.5}
@@ -126,7 +127,7 @@ export const MainScene: React.FC = () => {
                                     sectionThickness={1.2}
                                     cellSize={1}
                                     sectionSize={5}
-                                />
+                                /> */}
                             </Suspense>
 
                             {/* 대기 효과 (Fog) */}
