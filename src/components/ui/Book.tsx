@@ -123,13 +123,15 @@ export function Book({ leftContent, rightContent, isClosed = false }: BookProps)
                 </>
             )}
 
-            {/* LEFT HALF (Always 50% width internally, hidden via opacity when closed) */}
+            {/* LEFT HALF (Animate width from 50% to 280px after opening) */}
             <div
-                className="w-1/2 h-full relative"
+                className="h-full relative transition-[width] duration-700 ease-in-out"
                 style={{
+                    width: (isActuallyOpen && !isOpening) ? '280px' : '50%',
                     opacity: (isActuallyOpen && !isOpening) ? 1 : 0,
                     pointerEvents: (isActuallyOpen && !isOpening) ? 'auto' : 'none',
-                    zIndex: 10
+                    zIndex: 10,
+                    flexShrink: 0
                 }}
             >
                 {/* Background Cover */}
@@ -145,9 +147,9 @@ export function Book({ leftContent, rightContent, isClosed = false }: BookProps)
                 </div>
             </div>
 
-            {/* RIGHT HALF (Always 50% width) */}
+            {/* RIGHT HALF (Expands to fill remaining space as sidebar shrinks) */}
             <div
-                className="w-1/2 h-full relative"
+                className="flex-1 h-full relative transition-[flex-basis] duration-700 ease-in-out"
                 style={{
                     transformStyle: 'preserve-3d',
                     zIndex: 20

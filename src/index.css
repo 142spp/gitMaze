@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&family=JetBrains+Mono:wght@400;700&family=Noto+Sans+KR:wght@100..900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&family=JetBrains+Mono:wght@400;700&family=Noto+Sans+KR:wght@100..900&family=Staatliches&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -61,6 +61,9 @@
 
   /* Ensure CJK characters don't get forced into a rigid mono grid by setting a slightly wider character width if needed via xterm options,
      but here we ensure the font-family is correctly applied at the row level. */
+  .font-staatliches {
+    font-family: 'Staatliches', cursive !important;
+  }
 }
 
 @layer utilities {

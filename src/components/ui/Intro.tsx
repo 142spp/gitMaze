@@ -24,7 +24,10 @@ export const IntroCover: React.FC = () => {
                 </div>
 
                 <div className="text-center space-y-4">
-                    <h1 className="text-7xl font-black tracking-widest uppercase drop-shadow-[0_4px_4px_rgba(0,0,0,0.5)] font-serif text-[#FFD700]">
+                    <h1
+                        className="text-7xl tracking-widest uppercase drop-shadow-[0_4px_4px_rgba(0,0,0,0.5)] text-[#FFD700]"
+                        style={{ fontFamily: "'Squada One', cursive" }}
+                    >
                         Git Maze
                     </h1>
                     <div className="flex items-center justify-center gap-4 text-[#e5dec9] opacity-80 font-mono tracking-[0.2em] text-sm">
