@@ -325,7 +325,7 @@ export function Book({ leftContent, rightContent, isClosed = false }: BookProps)
 
 
                                 </div>
-                                <div className="mt-8 text-sm opacity-60 italic text-[#e5dec9]">"The journey of a thousand commits begins with a single init."</div>
+                                <div className="mt-8 text-sm opacity-60 italic text-[#e5dec9]">"커밋을 남긴다는 것은, 미래의 나를 위한 기록이다."</div>
 
                             </div>
                         </div>
