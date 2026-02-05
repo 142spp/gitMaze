@@ -400,6 +400,7 @@ export const useGameStore = create<GameState>((set, get) => {
             // 4. Block Pushing Check
             const blockIndex = items.findIndex(item => item.type.startsWith('block_') && item.x === targetX && item.z === targetZ);
             let updatedItems = [...items];
+            let updatedGrid = grid;
 
             if (blockIndex !== -1) {
                 const block = items[blockIndex];
@@ -409,22 +410,44 @@ export const useGameStore = create<GameState>((set, get) => {
                 // Block Boundary Check
                 if (nextBlockX < 0 || nextBlockX >= width || nextBlockZ < 0 || nextBlockZ >= height) return;
 
-                // Block Floor Check (can only push blocks onto solid floor)
                 const blockTargetFloorType = grid[nextBlockZ][nextBlockX];
-                if (blockTargetFloorType !== 'solid') return; // Cannot push block to pit or void
 
-                // Block Wall Check
-                if (isWallBlocking(block.x, block.z, dx, dz)) return;
+                // Case 1: Fill Pit
+                if (blockTargetFloorType === 'pit') {
+                    // Deep copy & Normalize grid to modify (ensure string[][] for cell modification)
+                    const newGrid: string[][] = grid.map(row => typeof row === 'string' ? row.split('') : [...row]);
+                    // Set to specific filled type to track color (e.g. 'filled_block_cube')
+                    newGrid[nextBlockZ][nextBlockX] = 'filled_' + block.type;
+                    updatedGrid = newGrid;
 
-                // Block overlapping another block Check
-                if (items.some(it => it.type.startsWith('block_') && it.x === nextBlockX && it.z === nextBlockZ)) return;
+                    // Remove Block (falls into pit)
+                    updatedItems.splice(blockIndex, 1);
+                }
+                // Case 2: Normal Push (Solid)
+                else if (blockTargetFloorType === 'solid') {
+                    // Block Wall Check
+                    if (isWallBlocking(block.x, block.z, dx, dz)) return;
 
-                // Move Block
-                updatedItems[blockIndex] = { ...block, x: nextBlockX, z: nextBlockZ };
+                    // Block overlapping another block Check
+                    if (items.some(it => it.type.startsWith('block_') && it.x === nextBlockX && it.z === nextBlockZ)) return;
+
+                    // Move Block
+                    updatedItems[blockIndex] = { ...block, x: nextBlockX, z: nextBlockZ };
+                }
+                // Case 3: Void or invalid
+                else {
+                    return;
+                }
             }
 
             // 5. Pit Check (if player moved to pit, trigger falling animation)
-            if (targetFloorType === 'pit') {
+            // Note: If player pushed block into pit, the pit is now solid (in updatedGrid), so player won't fall.
+            // We must check existing grid or updatedGrid? 
+            // Player is moving to `targetX`, `targetZ`.
+            // Ideally player checks `updatedGrid`. 
+            const floorAtTarget = updatedGrid[targetZ][targetX];
+
+            if (floorAtTarget === 'pit') {
                 set((state) => {
                     const newVisited = new Set(state.visitedCells);
                     newVisited.add(`${targetX},${targetZ}`);
@@ -432,7 +455,8 @@ export const useGameStore = create<GameState>((set, get) => {
                         currentMaze: {
                             ...currentMaze,
                             playerPosition: { x: targetX, z: targetZ },
-                            items: updatedItems
+                            items: updatedItems,
+                            grid: updatedGrid
                         },
                         visitedCells: newVisited,
                         isFalling: true
@@ -449,7 +473,8 @@ export const useGameStore = create<GameState>((set, get) => {
                     currentMaze: {
                         ...state.currentMaze,
                         playerPosition: { x: targetX, z: targetZ },
-                        items: updatedItems
+                        items: updatedItems,
+                        grid: updatedGrid
                     },
                     visitedCells: newVisited
                 };
