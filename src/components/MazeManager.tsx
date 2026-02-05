@@ -201,12 +201,11 @@ export const MazeManager: React.FC = () => {
         };
 
         // Gems
-        // Gems (Removed as per user request)
-        /* updateInstances(gemRef, it => it.type === 'star', (obj, it) => {
-             obj.position.set(it.x + 0.5, 0.5, it.z + 0.5);
-             obj.rotation.set(0, 0, 0);
-             obj.scale.set(0.3, 0.3, 0.3);
-         }, '#f59e0b'); */
+        updateInstances(gemRef, it => it.type === 'star', (obj, it) => {
+            obj.position.set(it.x + 0.5, 0.5, it.z + 0.5);
+            obj.rotation.set(0, 0, 0);
+            obj.scale.set(0.3, 0.3, 0.3);
+        }, '#f59e0b');
 
         // Blocks
         const blockSetup = (obj: Object3D, it: any) => {
@@ -229,7 +228,7 @@ export const MazeManager: React.FC = () => {
         // Floating animation for gems
         // Floating animation for gems
         // (Removed as per user request)
-        /* if (gemRef.current) {
+        if (gemRef.current) {
             let idx = 0;
             items.forEach((item) => {
                 if (item.type === 'star') {
@@ -244,7 +243,7 @@ export const MazeManager: React.FC = () => {
                 }
             })
             gemRef.current.instanceMatrix.needsUpdate = true
-        } */
+        }
     })
 
     return (
@@ -321,11 +320,10 @@ export const MazeManager: React.FC = () => {
             </instancedMesh>
 
             {/* Gems */}
-            {/* Gems (Removed) */}
-            {/* <instancedMesh ref={gemRef} args={[undefined, undefined, items.length]} castShadow>
+            <instancedMesh ref={gemRef} args={[undefined, undefined, items.length]} castShadow>
                 <octahedronGeometry args={[1, 0]} />
                 <meshStandardMaterial emissive="#f59e0b" emissiveIntensity={1} color="#f59e0b" />
-            </instancedMesh> */ }
+            </instancedMesh>
 
             {/* Blocks */}
             <instancedMesh ref={cubeBlockRef} args={[undefined, undefined, items.length]} castShadow receiveShadow>

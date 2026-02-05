@@ -590,7 +590,13 @@ export const useGameStore = create<GameState>((set, get) => {
                 return; // Exit early
             }
 
-            // 6. Normal Move Update
+            // 6. Item Collection (Stars)
+            const starIndex = updatedItems.findIndex(it => it.type === 'star' && it.x === targetX && it.z === targetZ);
+            if (starIndex !== -1) {
+                updatedItems.splice(starIndex, 1);
+            }
+
+            // 7. Normal Move Update
             set((state) => {
                 const newVisited = new Set(state.visitedCells);
                 newVisited.add(`${targetX},${targetZ}`);

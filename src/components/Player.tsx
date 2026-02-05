@@ -115,7 +115,7 @@ export const Player: React.FC = () => {
 
             if (moveVec.lengthSq() > 0) {
                 // Face the direction of movement
-                targetRotationY.current = Math.atan2(moveVec.x, moveVec.z);
+                targetRotationY.current = Math.atan2(moveVec.x, moveVec.z) - Math.PI / 2;
                 movePlayer(Math.round(moveVec.x), Math.round(moveVec.z));
             }
         };
@@ -160,6 +160,7 @@ export const Player: React.FC = () => {
 
     return (
         <group ref={groupRef}>
+            <pointLight position={[0, 3, 0]} intensity={15.0} distance={10} color="#ffffff" />
             <primitive
                 object={scene}
                 scale={1.3}
