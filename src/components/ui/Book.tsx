@@ -306,28 +306,24 @@ export function Book({ leftContent, rightContent, isClosed = false }: BookProps)
                                         <span className="opacity-80 text-[#e5dec9]">명령어 수</span>
                                         <span className="font-mono text-[#fff8e1]">{commandCount}회</span>
                                     </div>
+
+
                                 </div>
                                 <div className="mt-8 text-sm opacity-60 italic text-[#e5dec9]">"미로 탈출"</div>
-                                <button
-                                    onClick={() => nextStage()}
-                                    className="mt-6 px-8 py-3 bg-[#FFD700] text-[#5d4037] font-bold text-lg rounded shadow-lg hover:bg-[#ffed4a] hover:scale-105 active:scale-95 transition-all uppercase tracking-widest border-2 border-[#d4af37]"
-                                >
-                                    NEXT MISSION →
-                                </button>
+
                             </div>
                         </div>
                     )}
 
                     {/* Accessories */}
-                    {
-                        !isCleared && !isOpening && (
-                            <div className="absolute -bottom-6 right-0 w-48 h-4 bg-yellow-400 rotate-[15deg] shadow-2xl rounded-full z-40 border-b-4 border-yellow-600">
-                                <div className="absolute right-0 top-0 bottom-0 w-8 bg-pink-300 rounded-r-full border-l-2 border-gray-300" />
-                                <div className="absolute left-0 top-0 bottom-0 w-8 bg-[#fdfbf7] rounded-l-full border-r-[10px] border-[#d4af37] clip-path-pencil" />
-                            </div>
-                        )}
+                    {!isCleared && !isOpening && (
+                        <div className="absolute -bottom-6 right-0 w-48 h-4 bg-yellow-400 rotate-[15deg] shadow-2xl rounded-full z-40 border-b-4 border-yellow-600">
+                            <div className="absolute right-0 top-0 bottom-0 w-8 bg-pink-300 rounded-r-full border-l-2 border-gray-300" />
+                            <div className="absolute left-0 top-0 bottom-0 w-8 bg-[#fdfbf7] rounded-l-full border-r-[10px] border-[#d4af37] clip-path-pencil" />
+                        </div>
+                    )}
                 </div>
             </div>
-        </div >
+        </div>
     );
 }
