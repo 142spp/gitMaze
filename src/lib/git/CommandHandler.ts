@@ -8,6 +8,7 @@ export interface CommandContext {
     setMaze: (maze: MazeState) => void;
     syncToBackend: () => Promise<void>;
     requestFlip?: (action: () => void) => void;
+    requestPageTurn?: (action: () => void) => void;
     requestTear?: (action: () => void) => void;
     loadTutorial?: (level: number) => Promise<void>;
     loadStage?: (category: string, level: number) => Promise<void>;
@@ -19,7 +20,7 @@ export interface CommandContext {
 
 export class CommandHandler {
     static async execute(cmd: string, context: CommandContext): Promise<void> {
-        const { git, addLog, currentMaze, setMaze, syncToBackend, requestFlip, requestTear } = context;
+        const { git, addLog, currentMaze, setMaze, syncToBackend, requestFlip, requestPageTurn, requestTear } = context;
         const parts = cmd.trim().split(/\s+/);
 
         try {
@@ -69,8 +70,15 @@ export class CommandHandler {
                     addLog(`Created branch '${target}'`);
                 }
 
-                // Use Page Flip Effect if available
-                if (requestFlip) {
+                // Use Page Turn Effect for Checkout
+                if (requestPageTurn) {
+                    requestPageTurn(() => {
+                        const newState = git.checkout(target);
+                        setMaze(newState);
+                        addLog(`Switched to '${target}'`);
+                    });
+                } else if (requestFlip) {
+                    // Fallback to flip
                     requestFlip(() => {
                         const newState = git.checkout(target);
                         setMaze(newState);

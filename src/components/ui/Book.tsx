@@ -18,8 +18,9 @@ export function Book({ leftContent, rightContent, isClosed = false }: BookProps)
     const isSaving = useGameStore(state => state.isSaving);
     const saveError = useGameStore(state => state.saveError);
     const isTearing = visualEffect === 'tearing';
+    const isPageTurning = visualEffect === 'page-turning';
     const isCleared = gameStatus === 'cleared';
-    const isTransitioning = visualEffect === 'moving-right' || visualEffect === 'flipping';
+    const isTransitioning = visualEffect === 'moving-right' || visualEffect === 'flipping' || isPageTurning;
 
     const bookRef = useRef<HTMLDivElement>(null);
     const [captureImage, setCaptureImage] = useState<string | null>(null);
@@ -116,6 +117,74 @@ export function Book({ leftContent, rightContent, isClosed = false }: BookProps)
                     </div>
                 </div>
             )}
+
+{/* PAGE TURN OVERLAY (Checkout Effect) */ }
+{
+    isPageTurning && (
+        <div className="absolute inset-0 z-[90] pointer-events-none" style={{ perspective: '2000px' }}>
+            {/* Turning Page (Full width, like opening book) */}
+            <div
+                className="absolute top-0 left-0 w-full h-full animate-page-turn"
+                style={{
+                    transformStyle: 'preserve-3d',
+                    transformOrigin: 'center center'
+                }}
+            >
+                {/* Front of page - Show CommitSidebar filling entire width */}
+                <div className="absolute inset-0 flex" style={{ backfaceVisibility: 'hidden' }}>
+                    {/* Left side: Leather background with sidebar */}
+                    <div className="w-1/2 h-full relative bg-[#5d4037] overflow-hidden rounded-l-[40px]">
+                        <div className="absolute inset-0 opacity-40" style={{ backgroundImage: `url('https://www.transparenttextures.com/patterns/leather.png')` }} />
+                        <div className="relative z-20 w-full h-full p-4 pr-0">
+                            <div className="w-full h-full bg-[#f7f3e8] rounded-l-[30px] border border-[#5d4037] border-r-0 overflow-hidden">
+                                {leftContent}
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Right side: Continue showing sidebar (extended) */}
+                    <div className="w-1/2 h-full relative bg-[#5d4037] overflow-hidden rounded-r-[40px]">
+                        <div className="absolute inset-0 opacity-40" style={{ backgroundImage: `url('https://www.transparenttextures.com/patterns/leather.png')` }} />
+                        <div className="relative z-20 w-full h-full p-4 pl-0">
+                            <div className="w-full h-full bg-[#f7f3e8] rounded-r-[30px] border border-[#5d4037] border-l-0 overflow-hidden">
+                                {leftContent}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Back of page - Show new content (rightContent) */}
+                <div
+                    className="absolute inset-0 flex"
+                    style={{
+                        transform: 'rotateY(180deg)',
+                        backfaceVisibility: 'hidden'
+                    }}
+                >
+                    {/* Left side: Sidebar */}
+                    <div className="w-1/2 h-full relative bg-[#5d4037] overflow-hidden rounded-l-[40px]">
+                        <div className="absolute inset-0 opacity-40" style={{ backgroundImage: `url('https://www.transparenttextures.com/patterns/leather.png')` }} />
+                        <div className="relative z-20 w-full h-full p-4 pr-0">
+                            <div className="w-full h-full bg-[#f7f3e8] rounded-l-[30px] border border-[#5d4037] border-r-0 overflow-hidden">
+                                {leftContent}
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Right side: New content */}
+                    <div className="w-1/2 h-full relative bg-[#5d4037] overflow-hidden rounded-r-[40px]">
+                        <div className="absolute inset-0 opacity-40" style={{ backgroundImage: `url('https://www.transparenttextures.com/patterns/leather.png')` }} />
+                        <div className="relative z-20 w-full h-full p-4 pl-0">
+                            <div className="w-full h-full bg-[#f7f3e8] rounded-r-[30px] border border-[#5d4037] border-l-0 overflow-hidden">
+                                {rightContent}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    )
+}
 
             {/* REAL BOOK CONTENT */}
             <div

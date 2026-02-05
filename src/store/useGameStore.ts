@@ -34,7 +34,7 @@ interface GameState {
     visitedCells: Set<string>; // "x,z" format
 
     // UI Effects
-    visualEffect: 'none' | 'preparing-tear' | 'preparing-flip' | 'tearing' | 'flipping' | 'moving-right';
+    visualEffect: 'none' | 'preparing-tear' | 'preparing-flip' | 'tearing' | 'flipping' | 'moving-right' | 'page-turning';
     pendingResetAction: (() => void) | null;
     terminalHistory: string[];
     isFalling: boolean;
@@ -63,6 +63,9 @@ interface GameState {
     requestFlip: (action: () => void) => void;
     confirmFlip: () => void;
     finishFlip: () => void;
+
+    // Page Turn Flow (Checkout)
+    requestPageTurn: (action: () => void) => void;
 
     // Commit Flow
     requestCommit: (msg: string) => Promise<void>;
@@ -193,6 +196,20 @@ export const useGameStore = create<GameState>((set, get) => {
         },
 
         finishFlip: () => set({ visualEffect: 'none' }),
+
+        requestPageTurn: (action) => {
+            set({ visualEffect: 'page-turning' });
+
+            // Execute state change in middle of animation
+            setTimeout(() => {
+                action();
+            }, 400);
+
+            // Finish animation
+            setTimeout(() => {
+                set({ visualEffect: 'none' });
+            }, 800);
+        },
 
         requestCommit: async (msg: string) => {
             const { git, currentMaze } = get();
@@ -505,6 +522,7 @@ export const useGameStore = create<GameState>((set, get) => {
                 setMaze: (maze) => set({ currentMaze: maze }),
                 syncToBackend,
                 requestFlip,
+                requestPageTurn: get().requestPageTurn,
                 requestTear,
                 loadTutorial: get().loadTutorial,
                 loadStage: get().loadStage,
