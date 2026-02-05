@@ -94,38 +94,25 @@ export function Book({ leftContent, rightContent, isClosed = false }: BookProps)
             {/* OVERLAYS (Visible during tearing) */}
             {isTearing && captureImage && (
                 <div className="absolute inset-0 z-[100] pointer-events-none">
-                    <div className="absolute top-0 left-0 h-full w-1/2 animate-tear-left shadow-2xl origin-right">
-                        <div className="w-full h-full" style={{
+                    {/* LEFT FRAGMENT */}
+                    <div className="absolute top-0 left-0 h-full w-1/2 animate-tear-left origin-right bg-transparent" style={{ filter: 'drop-shadow(0 10px 30px rgba(0,0,0,0.4))' }}>
+                        {/* Captured Content with Jagged Edge */}
+                        <div className="w-full h-full clip-torn-left bg-transparent" style={{
                             backgroundImage: `url(${captureImage})`,
                             backgroundSize: '200% 100%',
                             backgroundPosition: 'left top'
                         }} />
-                        <div
-                            className="absolute right-0 top-0 bottom-0 w-3"
-                            style={{
-                                background: 'radial-gradient(circle at 100% 50%, transparent 4px, #fdfbf7 5px)',
-                                backgroundSize: '10px 15px',
-                                backgroundPosition: '5px 0',
-                                opacity: 0.8
-                            }}
-                        />
                     </div>
-                    <div className="absolute top-0 right-0 h-full w-1/2 animate-tear-right shadow-2xl" style={{ left: '50%', transformOrigin: '0% 0%', perspective: '1500px' }}>
-                        <div className="w-full h-full" style={{
+
+                    {/* RIGHT FRAGMENT */}
+                    <div className="absolute top-0 right-0 h-full w-1/2 animate-tear-right bg-transparent" style={{ left: '50%', transformOrigin: '0% 0%', perspective: '1500px', filter: 'drop-shadow(0 10px 30px rgba(0,0,0,0.4))' }}>
+                        {/* Captured Content with Jagged Edge */}
+                        <div className="w-full h-full clip-torn-right bg-transparent" style={{
                             backgroundImage: `url(${captureImage})`,
                             backgroundSize: '200% 100%',
                             backgroundPosition: 'right top',
                             boxShadow: 'inset 20px 0 50px rgba(0,0,0,0.3)'
                         }} />
-                        <div
-                            className="absolute left-0 top-0 bottom-0 w-3"
-                            style={{
-                                background: 'radial-gradient(circle at 0 50%, transparent 4px, #fdfbf7 5px)',
-                                backgroundSize: '10px 15px',
-                                backgroundPosition: '-5px 0',
-                                opacity: 0.8
-                            }}
-                        />
                     </div>
                 </div>
             )}
