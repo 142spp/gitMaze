@@ -56,7 +56,7 @@ export const MazeManager: React.FC = () => {
 
                 // Color start position blue, others Sand/Island color
                 const isStartPos = tile.x === currentMaze.startPos.x && tile.z === currentMaze.startPos.z;
-                tempColor.set(isStartPos ? '#3b82f6' : '#fde68a'); // Blue start, Sand others
+                tempColor.set(isStartPos ? '#a7f3d0' : '#fde68a'); // Dark Green start, Sand others
                 floorRef.current!.setColorAt(i, tempColor);
             });
             for (let j = floorTiles.solid.length; j < width * height; j++) {
