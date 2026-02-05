@@ -145,6 +145,13 @@ const App: React.FC = () => {
                 >
                     Next Stage →
                 </button>
+
+                <button
+                    onClick={() => useGameStore.getState().completeGame()}
+                    className="mt-2 px-4 py-2 bg-red-800/80 text-white rounded-lg shadow-lg hover:bg-red-700 transition-colors text-xs font-bold uppercase tracking-widest border border-red-400/30"
+                >
+                    Debug: Clear Game 🏆
+                </button>
             </div>
             {/* Decorative Floating UI Buttons (Themed) - Only show in Game? Or always? Let's keep them always for now or hide in intro if they distract. 
                 The user didn't ask to remove them, but they might look weird on Intro. Let's hide them on Intro.

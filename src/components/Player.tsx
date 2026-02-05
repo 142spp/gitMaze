@@ -3,6 +3,8 @@ import { useFrame, useThree } from '@react-three/fiber'
 import { useGameStore } from '../store/useGameStore'
 import { Group, Vector3 } from 'three'
 import { useGLTF, useAnimations } from '@react-three/drei'
+import { SkeletonUtils } from 'three-stdlib'
+import { useMemo } from 'react'
 
 export const Player: React.FC = () => {
     const { camera } = useThree()
@@ -15,8 +17,9 @@ export const Player: React.FC = () => {
     const currentY = useRef(0.05)
     const fallingStarted = useRef(false)
 
-    // Load GLB
-    const { scene, animations } = useGLTF('/player.glb')
+    // Load GLB and clone scene to prevent theft when double-mounted
+    const { scene: originalScene, animations } = useGLTF('/player.glb')
+    const scene = useMemo(() => SkeletonUtils.clone(originalScene), [originalScene])
     const { actions } = useAnimations(animations, groupRef)
 
     // Movement Actions

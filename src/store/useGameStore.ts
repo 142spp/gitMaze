@@ -70,6 +70,7 @@ interface GameState {
 
     // Page Turn Flow (Checkout)
     requestPageTurn: (action: () => void) => void;
+    confirmPageTurn: () => void;
 
     // Commit Flow
     requestCommit: (msg: string) => Promise<void>;
@@ -232,23 +233,28 @@ export const useGameStore = create<GameState>((set, get) => {
         finishFlip: () => set({ visualEffect: 'none' }),
 
         requestPageTurn: (action) => {
-            // Phase 1: Expand sidebar to 50%
-            set({ visualEffect: 'preparing-turn' });
+            // Phase 0: Start capture phase
+            set({ visualEffect: 'preparing-turn', pendingResetAction: action });
+        },
 
-            // Phase 2: Start page flip after sidebar expansion
-            setTimeout(() => {
-                set({ visualEffect: 'page-turning' });
-            }, 500);
+        confirmPageTurn: () => {
+            if (get().visualEffect !== 'preparing-turn') return;
 
-            // Execute state change in middle of flip
-            setTimeout(() => {
-                action();
-            }, 900);
+            const { pendingResetAction } = get();
+            if (pendingResetAction) {
+                // Phase 1: Expand sidebar to 50%
+                set({ visualEffect: 'page-turning', pendingResetAction: null });
 
-            // Finish animation
-            setTimeout(() => {
-                set({ visualEffect: 'none' });
-            }, 1400);
+                // Execute state change in middle of flip
+                setTimeout(() => {
+                    pendingResetAction();
+                }, 400);
+
+                // Finish animation
+                setTimeout(() => {
+                    set({ visualEffect: 'none' });
+                }, 900);
+            }
         },
 
         requestCommit: async (msg: string) => {
@@ -637,6 +643,7 @@ export const useGameStore = create<GameState>((set, get) => {
         },
 
         sendCommand: async (cmd: string) => {
+            set((state) => ({ commandCount: state.commandCount + 1 }));
             const { git, syncToBackend, initialize, requestFlip, requestTear } = get();
             const { addLog } = useTerminalStore.getState();
 

@@ -29,9 +29,12 @@ export function Book({ leftContent, rightContent, isClosed = false }: BookProps)
     const [isRising, setIsRising] = useState(false);
     const prevEffect = useRef(visualEffect);
 
-    // Handle Preparation (Screenshot) - Only for tearing effect
+    // Handle Preparation (Screenshot) - For tearing AND page turn effects
     useEffect(() => {
-        if (visualEffect === 'preparing-tear' && bookRef.current) {
+        const isPreparing = visualEffect === 'preparing-tear' || visualEffect === 'preparing-turn';
+        const confirmAction = visualEffect === 'preparing-tear' ? confirmTear : useGameStore.getState().confirmPageTurn;
+
+        if (isPreparing && bookRef.current) {
             const capture = async () => {
                 try {
                     const canvas = await html2canvas(bookRef.current!, {
@@ -45,11 +48,11 @@ export function Book({ leftContent, rightContent, isClosed = false }: BookProps)
                     });
 
                     setCaptureImage(canvas.toDataURL('image/png'));
-                    confirmTear();
+                    confirmAction();
 
                 } catch (e) {
                     console.error("Capture failed:", e);
-                    confirmTear();
+                    confirmAction();
                 }
             };
             setTimeout(capture, 50);
@@ -74,9 +77,13 @@ export function Book({ leftContent, rightContent, isClosed = false }: BookProps)
     const isActuallyOpen = (gameStatus === 'playing' || gameStatus === 'cleared');
     const isOpening = visualEffect === 'moving-right' || visualEffect === 'flipping';
 
-    const translationStyle = (isClosed && !isOpening)
-        ? 'translateX(-25%)'
-        : 'translateX(0)';
+    // Centering Logic:
+    // Intro: translateX(-25%) centers the Cover on screen.
+    // Playing: translateX(0) centers the Spine on screen (User Preference).
+    // Cleared: translateX(25%) pushes the book Right to balance the expanded layout.
+    const translationStyle = (gameStatus === 'cleared')
+        ? 'translateX(25%)'
+        : ((isClosed && !isOpening) ? 'translateX(-25%)' : 'translateX(0)');
 
     // During tearing, hide the REAL book content so only the tearing fragments are visible.
     // BUT during preparing-tear, we MUST show everything for the screenshot.
@@ -85,7 +92,7 @@ export function Book({ leftContent, rightContent, isClosed = false }: BookProps)
     return (
         <div
             ref={bookRef}
-            className={`relative z-10 flex justify-center perspective-1000 transition-transform duration-700 ease-in-out ${isRising ? 'animate-page-slide-up' : ''}`}
+            className={`relative z-10 flex justify-center perspective-1000 transition-transform duration-[700ms] ease-in-out ${isRising ? 'animate-page-slide-up' : ''}`}
             style={{
                 maxWidth: '1200px',
                 height: 'min(94vh, 1000px)',
@@ -132,12 +139,20 @@ export function Book({ leftContent, rightContent, isClosed = false }: BookProps)
                                 transformOrigin: '0% 50%'
                             }}
                         >
-                            {/* Front of page - Current rightContent */}
+                            {/* Front of page - Show a screenshot during turn to avoid double-mounting R3F Canvas */}
                             <div className="absolute inset-0 bg-[#5d4037] overflow-hidden" style={{ backfaceVisibility: 'hidden' }}>
                                 <div className="absolute inset-0 opacity-40" style={{ backgroundImage: `url('https://www.transparenttextures.com/patterns/leather.png')` }} />
                                 <div className="relative z-20 w-full h-full p-4 pl-0">
-                                    <div className="w-full h-full bg-[#f7f3e8] rounded-r-[30px] border border-[#5d4037] border-l-0 overflow-hidden">
-                                        {rightContent}
+                                    <div className="w-full h-full bg-[#f7f3e8] rounded-r-[30px] border border-[#5d4037] border-l-0 overflow-hidden relative">
+                                        {captureImage ? (
+                                            <div className="w-full h-full" style={{
+                                                backgroundImage: `url(${captureImage})`,
+                                                backgroundSize: '200% 100%',
+                                                backgroundPosition: 'right top'
+                                            }} />
+                                        ) : (
+                                            rightContent
+                                        )}
                                         <div className="absolute left-0 top-0 bottom-0 w-12 bg-gradient-to-r from-black/10 to-transparent pointer-events-none z-50" />
                                     </div>
                                 </div>
@@ -172,11 +187,11 @@ export function Book({ leftContent, rightContent, isClosed = false }: BookProps)
                     pointerEvents: showContent ? 'auto' : 'none'
                 }}
             >
-                {/* LEFT HALF (Animate width from 50% to 280px after opening) */}
+                {/* LEFT HALF (Animate width from 50% to 280px after opening, then back to 50% on clear) */}
                 <div
-                    className="h-full relative transition-[width,opacity] duration-700 ease-in-out"
+                    className="h-full relative transition-[width,opacity] duration-[700ms] ease-in-out"
                     style={{
-                        width: (isActuallyOpen && !isOpening && !isPreparingTurn && !isPageTurning) ? '280px' : '50%',
+                        width: (isActuallyOpen && !isOpening && !isPreparingTurn && !isPageTurning && !isCleared) ? '280px' : '50%',
                         opacity: (isActuallyOpen && !isOpening) ? 1 : 0,
                         pointerEvents: (isActuallyOpen && !isOpening && !isPreparingTurn && !isPageTurning) ? 'auto' : 'none',
                         zIndex: 10,
@@ -196,14 +211,15 @@ export function Book({ leftContent, rightContent, isClosed = false }: BookProps)
 
                 {/* RIGHT HALF */}
                 <div
-                    className="flex-1 h-full relative transition-[flex-basis,opacity] duration-700 ease-in-out"
+                    className={`flex-1 h-full relative transition-all duration-[1500ms] ease-in-out ${isCleared ? 'animate-page-flip' : ''}`}
                     style={{
                         transformStyle: 'preserve-3d',
-                        zIndex: 20
+                        zIndex: 20,
+                        transformOrigin: 'left center'
                     }}
                 >
                     {/* BASE LAYER */}
-                    <div className="absolute inset-0 w-full h-full">
+                    <div className="absolute inset-0 w-full h-full" style={{ backfaceVisibility: 'hidden' }}>
                         <div className="absolute inset-0 bg-[#5d4037] shadow-[0_20px_50px_rgba(0,0,0,0.3)] overflow-hidden rounded-r-[40px]">
                             <div className="absolute left-0 top-0 bottom-0 w-6 bg-gradient-to-r from-black/40 to-transparent" />
                             <div className="absolute inset-0 opacity-40 pointer-events-none" style={{ backgroundImage: `url('https://www.transparenttextures.com/patterns/leather.png')` }} />
@@ -292,14 +308,14 @@ export function Book({ leftContent, rightContent, isClosed = false }: BookProps)
                         >
                             <div className="absolute inset-0 opacity-30 pointer-events-none" style={{ backgroundImage: `url('https://www.transparenttextures.com/patterns/leather.png')` }} />
                             <div className="relative z-10 border-4 border-[#d4af37] p-8 rounded-lg flex flex-col items-center gap-6 bg-black/20 backdrop-blur-sm shadow-xl min-w-[300px]">
-                                <h1 className="text-5xl font-bold tracking-widest mb-4 text-[#FFD700] drop-shadow-md uppercase">임무 완수!</h1>
+                                <h1 className="text-5xl font-bold tracking-widest mb-4 text-[#FFD700] drop-shadow-md uppercase">오늘의 기록</h1>
                                 <div className="flex flex-col gap-4 text-xl w-full">
                                     <div className="flex justify-between border-b border-[#d4af37]/30 pb-2">
-                                        <span className="opacity-80 text-[#e5dec9]">요원</span>
+                                        <span className="opacity-80 text-[#e5dec9]">저자</span>
                                         <span className="font-mono text-[#fff8e1]">{userId}</span>
                                     </div>
                                     <div className="flex justify-between border-b border-[#d4af37]/30 pb-2">
-                                        <span className="opacity-80 text-[#e5dec9]">소요 시간</span>
+                                        <span className="opacity-80 text-[#e5dec9]">작성 시간</span>
                                         <span className="font-mono text-[#fff8e1]">{useGameStore.getState().finalTime?.toFixed(2) || '0.00'}초</span>
                                     </div>
                                     <div className="flex justify-between border-b border-[#d4af37]/30 pb-2">
@@ -309,7 +325,7 @@ export function Book({ leftContent, rightContent, isClosed = false }: BookProps)
 
 
                                 </div>
-                                <div className="mt-8 text-sm opacity-60 italic text-[#e5dec9]">"미로 탈출"</div>
+                                <div className="mt-8 text-sm opacity-60 italic text-[#e5dec9]">"The journey of a thousand commits begins with a single init."</div>
 
                             </div>
                         </div>

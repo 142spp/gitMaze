@@ -28,7 +28,7 @@ export const IntroCover: React.FC = () => {
                         className="text-7xl tracking-widest uppercase drop-shadow-[0_4px_4px_rgba(0,0,0,0.5)] text-[#FFD700]"
                         style={{ fontFamily: "'Squada One', cursive" }}
                     >
-                        Git Maze
+                        Git DIARY
                     </h1>
                     <div className="flex items-center justify-center gap-4 text-[#e5dec9] opacity-80 font-mono tracking-[0.2em] text-sm">
                         <span>EST. 2026</span>
@@ -60,7 +60,7 @@ export const IntroCover: React.FC = () => {
                     </button>
                 </div>
 
-                <p className="mt-8 text-xs text-[#d4af37]/40 font-mono">
+                <p className="mt-8 text-xs text-[#FFD700]/40 font-mono">
                     "The journey of a thousand commits begins with a single init."
                 </p>
             </div>
