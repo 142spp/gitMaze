@@ -98,7 +98,7 @@ export class CommandHandler {
                 addLog(result);
             }
             else if (parts[0] === 'git' && parts[1] === 'reset') {
-                const mode = parts.includes('--hard') ? 'hard' : 'soft';
+                const mode = parts.includes('--soft') ? 'soft' : 'hard';
                 const target = parts.find(p => !p.startsWith('--') && p !== 'git' && p !== 'reset') || 'HEAD';
 
                 // Check if player is dead - revive them
@@ -107,13 +107,12 @@ export class CommandHandler {
                     resetPlayerPosition();
                     addLog('You have been revived at the last checkpoint.');
                 }
-
                 // Use Tear Effect if available
                 if (requestTear) {
                     requestTear(() => {
                         const newState = git.reset(target, mode, currentMaze);
                         setMaze(newState);
-                        addLog(`Reset to ${target} (${mode})`);
+                        addLog(`Reset to ${target} (${mode}) -> (${newState.playerPosition.x}, ${newState.playerPosition.z})`);
                     });
                 } else {
                     // Fallback to direct execution
