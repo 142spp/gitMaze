@@ -17,6 +17,7 @@ export function Book({ leftContent, rightContent, isClosed = false }: BookProps)
     const commandCount = useGameStore(state => state.commandCount);
     const isSaving = useGameStore(state => state.isSaving);
     const saveError = useGameStore(state => state.saveError);
+    const nextStage = useGameStore(state => state.nextStage);
     const isTearing = visualEffect === 'tearing';
     const isCleared = gameStatus === 'cleared';
     const isTransitioning = visualEffect === 'moving-right' || visualEffect === 'flipping';
@@ -265,6 +266,14 @@ export function Book({ leftContent, rightContent, isClosed = false }: BookProps)
                                     <span className="font-mono text-[#fff8e1]">{commandCount}회</span>
                                 </div>
                             </div>
+
+                            <button
+                                onClick={() => nextStage()}
+                                className="mt-6 px-8 py-3 bg-[#FFD700] text-[#5d4037] font-bold text-lg rounded shadow-lg hover:bg-[#ffed4a] hover:scale-105 active:scale-95 transition-all uppercase tracking-widest border-2 border-[#d4af37]"
+                            >
+                                NEXT MISSION →
+                            </button>
+
                             <div className="mt-8 text-sm opacity-60 italic text-[#e5dec9]">"미로 탈출"</div>
                         </div>
                     </div>

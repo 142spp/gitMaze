@@ -59,6 +59,9 @@ interface GameState {
     confirmTear: () => void;
     finishTear: () => void;
 
+    // Win Logic
+    checkWinCondition: () => void;
+
     // Flipping Flow (Checkout)
     requestFlip: (action: () => void) => void;
     confirmFlip: () => void;
@@ -169,6 +172,33 @@ export const useGameStore = create<GameState>((set, get) => {
         },
 
         finishTear: () => set({ visualEffect: 'none' }),
+
+        checkWinCondition: () => {
+            const { git, currentMaze, completeGame } = get();
+
+            // 1. Must be on 'main' branch
+            const currentBranch = git.getCurrentBranch();
+            if (currentBranch !== 'main') return;
+
+            // Strict Rule for Stage 4: Must have merged (Only 1 branch left)
+            const { currentCategory, currentStage } = get();
+            if (currentCategory === 'main' && currentStage === 4) {
+                // Check if 'resources' branch is gone (merged)
+                if (git.getBranches().length > 1) return;
+            }
+
+            // 2. Win Condition: No pits OR No blocks left
+            // "Colored holes" are those relevant to blocks. If no blocks, no colored holes remain.
+            const hasPits = currentMaze.grid.some(row =>
+                Array.isArray(row) ? row.includes('pit') : row.includes('pit')
+            );
+
+            const hasBlocks = currentMaze.items.some(it => it.type.startsWith('block_'));
+
+            if (!hasPits || !hasBlocks) {
+                completeGame();
+            }
+        },
 
         // Page Flip Logic - Sequenced (Slide right then flip)
         requestFlip: (action) => {
@@ -344,6 +374,60 @@ export const useGameStore = create<GameState>((set, get) => {
                 });
 
                 addLog(`Stage ${category} ${level} ready.`);
+
+                // Stage 4 Special Setup: Pre-created Branches
+                if (category === 'main' && level === 4) {
+                    addLog('[SYSTEM] Initializing Branching Puzzle...');
+
+                    const originalState = newGit.getCurrentState();
+
+                    // 1. Setup 'resources' branch (Remove the Orange Block)
+                    newGit.branch('resources');
+                    newGit.checkout('resources');
+
+                    const resItems = originalState.items.filter(it => !(it.x === 2 && it.z === 4));
+                    const resState = { ...originalState, items: resItems };
+                    newGit.commit('Resources: Blocks (No Orange)', resState);
+
+                    // 2. Setup 'main' branch (Only Orange Block + Pits)
+                    newGit.checkout('main');
+
+                    // Remove Blocks EXCEPT the middle orange one (x=2, z=4)
+                    const mainItems = originalState.items.filter(it =>
+                        !it.type.startsWith('block_') || (it.x === 2 && it.z === 4)
+                    );
+
+                    // Modify Grid: Plate Location -> Pit
+                    const mainGrid = originalState.grid.map(row =>
+                        typeof row === 'string' ? row.split('') : [...row]
+                    );
+
+                    originalState.items.forEach(it => {
+                        if (it.type.startsWith('plate_')) {
+                            if (mainGrid[it.z] && mainGrid[it.z][it.x]) {
+                                mainGrid[it.z][it.x] = 'pit';
+                            }
+                        }
+                    });
+
+                    const mainState = {
+                        ...originalState,
+                        items: mainItems,
+                        grid: mainGrid
+                    };
+
+                    // Commit to Main
+                    newGit.commit('Main Branch: Pits + Orange Block', mainState);
+
+                    // Update Store
+                    set({
+                        currentMaze: newGit.getCurrentState(),
+                        gitVersion: get().gitVersion + 1
+                    });
+
+                    addLog('Scenario Loaded: You are on "main" with Pits.');
+                    addLog('Hint: A "resources" branch exists with supplies.');
+                }
             } catch (err) {
                 console.error("Stage load failed:", err);
                 set({ isLoading: false, error: "Failed to load stage" });
@@ -536,6 +620,7 @@ export const useGameStore = create<GameState>((set, get) => {
                 syncToBackend,
                 requestFlip,
                 requestTear,
+                checkWinCondition: get().checkWinCondition,
                 loadTutorial: get().loadTutorial,
                 loadStage: get().loadStage,
                 nextStage: get().nextStage,

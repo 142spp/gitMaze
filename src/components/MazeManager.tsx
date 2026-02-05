@@ -36,11 +36,7 @@ export const MazeManager: React.FC = () => {
     const cubeBlockRef = useRef<InstancedMesh>(null)
     const sphereBlockRef = useRef<InstancedMesh>(null)
     const tetraBlockRef = useRef<InstancedMesh>(null)
-    const cubePlateRef = useRef<InstancedMesh>(null)
-    const spherePlateRef = useRef<InstancedMesh>(null)
-    const tetraPlateRef = useRef<InstancedMesh>(null)
     const cylinderBlockRef = useRef<InstancedMesh>(null)
-    const cylinderPlateRef = useRef<InstancedMesh>(null)
 
     const themeColor = '#2563eb'
 
@@ -60,11 +56,11 @@ export const MazeManager: React.FC = () => {
         return { solid, pits };
     }, [width, height, grid]);
 
-    // Calculate Highlight Data (Pits adjacent to blocks)
+    // Calculate Highlight Data (Pits adjacent to blocks AND Plates/Hints)
     const highlightData = useMemo(() => {
-        const data: { x: number, z: number, color: string }[] = [];
+        const data: { x: number, z: number, color: string, type: 'pit' | 'plate' }[] = [];
 
-        // Find all blocks positions and types
+        // 1. Pits Logic (Deep Hole with Hint if block adjacent)
         const blocks = items.filter(it => it.type.startsWith('block_'));
 
         floorTiles.pits.forEach(pit => {
@@ -76,21 +72,35 @@ export const MazeManager: React.FC = () => {
                 { x: pit.x, z: pit.z - 1 },
             ];
 
-            // Find first block in neighbors
             const adjacentBlock = blocks.find(b =>
                 neighbors.some(n => n.x === b.x && n.z === b.z)
             );
 
             if (adjacentBlock) {
                 let color = '#ffffff';
-                if (adjacentBlock.type === 'block_cube') color = '#ef4444'; // Red
-                else if (adjacentBlock.type === 'block_sphere') color = '#f97316'; // Orange
-                else if (adjacentBlock.type === 'block_tetra') color = '#8b5cf6'; // Purple
-                else if (adjacentBlock.type === 'block_cylinder') color = '#1e3a8a'; // Navy
+                if (adjacentBlock.type === 'block_cube') color = '#ef4444';
+                else if (adjacentBlock.type === 'block_sphere') color = '#f97316';
+                else if (adjacentBlock.type === 'block_tetra') color = '#8b5cf6';
+                else if (adjacentBlock.type === 'block_cylinder') color = '#1e3a8a';
 
-                data.push({ x: pit.x, z: pit.z, color });
+                data.push({ x: pit.x, z: pit.z, color, type: 'pit' });
             }
         });
+
+        // 2. Plates Logic (Surface Hints)
+        items.forEach(it => {
+            if (it.type.startsWith('plate_')) {
+                let color = '#ffffff';
+                if (it.type === 'plate_cube') color = '#ef4444'; // Match Block Color (Red)
+                else if (it.type === 'plate_sphere') color = '#f97316'; // Match Block Color (Orange)
+                else if (it.type === 'plate_tetra') color = '#8b5cf6'; // Match Block Color (Purple)
+                else if (it.type === 'plate_cylinder') color = '#1e3a8a'; // Match Block Color (Navy)
+
+                // Add as 'plate' type highlight
+                data.push({ x: it.x, z: it.z, color, type: 'plate' });
+            }
+        });
+
         return data;
     }, [items, floorTiles.pits]);
 
@@ -208,26 +218,10 @@ export const MazeManager: React.FC = () => {
         updateInstances(sphereBlockRef, it => it.type === 'block_sphere', blockSetup, '#f97316'); // Orange
         updateInstances(tetraBlockRef, it => it.type === 'block_tetra', blockSetup, '#8b5cf6');
         updateInstances(cylinderBlockRef, it => it.type === 'block_cylinder', (obj, it) => {
-            // Cylinder setup: slightly different geometry? or just scale box/cylinder?
-            // Assuming we use standard geometry available or just reuse box for now if generic?
-            // Actually, `blockSetup` sets scale 0.7.
-            // We need to render `cylinderBlockRef`.
-            // But we don't have `<instancedMesh ...><cylinderGeometry .../></instancedMesh>` for it in JSX yet.
-            // I will add JSX first.
-            // For now just setup the instance logic.
             blockSetup(obj, it);
         }, '#1e3a8a'); // Navy
 
-        // Plates
-        const plateSetup = (obj: Object3D, it: any) => {
-            obj.position.set(it.x + 0.5, -0.2, it.z + 0.5);
-            obj.rotation.set(0, 0, 0);
-            obj.scale.set(0.8, 0.1, 0.8);
-        };
-        updateInstances(cubePlateRef, it => it.type === 'plate_cube', plateSetup, '#fca5a5');
-        updateInstances(spherePlateRef, it => it.type === 'plate_sphere', plateSetup, '#fdba74'); // Light Orange
-        updateInstances(tetraPlateRef, it => it.type === 'plate_tetra', plateSetup, '#ddd6fe');
-        updateInstances(cylinderPlateRef, it => it.type === 'plate_cylinder', plateSetup, '#93c5fd'); // Light Blue/Navy
+        // Plates setup removed (handled by Highlights now)
 
     }, [width, height, walls, items, grid, floorTiles])
 
@@ -268,48 +262,57 @@ export const MazeManager: React.FC = () => {
 
 
             {/* Highlights */}
-            {highlightData.map((h, i) => (
-                <group key={i} position={[h.x + 0.5, -0.45, h.z + 0.5]}>
-                    <group>
-                        {/* Main Hint Box (Translucent Sides) */}
-                        <mesh>
-                            <boxGeometry args={[1.0, 0.6, 1.0]} />
-                            {/* Materials: Right, Left, Top, Bottom, Front, Back */}
-                            {/* Sides are now transparent (removed colored tint) */}
-                            <meshBasicMaterial attach="material-0" transparent opacity={0.0} />
-                            <meshBasicMaterial attach="material-1" transparent opacity={0.0} />
-                            <meshBasicMaterial attach="material-2" transparent opacity={0.0} />
-                            <meshBasicMaterial attach="material-3" color="white" />
-                            <meshBasicMaterial attach="material-4" transparent opacity={0.0} />
-                            <meshBasicMaterial attach="material-5" transparent opacity={0.0} />
-                        </mesh>
+            {/* Highlights (Pits and Plates) */}
+            {highlightData.map((h, i) => {
+                const isPit = h.type === 'pit';
+                // Pits: Deep (-0.45). Plates: Surface (0.00)
+                const yPos = isPit ? -0.45 : 0.00;
 
-                        {/* Thick Top Frame */}
-                        <group position={[0, 0.3, 0]}>
-                            {/* Top Strip */}
-                            <mesh position={[0, 0, -0.425]}>
-                                <boxGeometry args={[1, 0.05, 0.15]} />
-                                <meshBasicMaterial color={h.color} />
-                            </mesh>
-                            {/* Bottom Strip */}
-                            <mesh position={[0, 0, 0.425]}>
-                                <boxGeometry args={[1, 0.05, 0.15]} />
-                                <meshBasicMaterial color={h.color} />
-                            </mesh>
-                            {/* Left Strip */}
-                            <mesh position={[-0.425, 0, 0]}>
-                                <boxGeometry args={[0.15, 0.05, 0.7]} />
-                                <meshBasicMaterial color={h.color} />
-                            </mesh>
-                            {/* Right Strip */}
-                            <mesh position={[0.425, 0, 0]}>
-                                <boxGeometry args={[0.15, 0.05, 0.7]} />
-                                <meshBasicMaterial color={h.color} />
-                            </mesh>
+                return (
+                    <group key={i} position={[h.x + 0.5, yPos, h.z + 0.5]}>
+                        <group>
+                            {/* 1. Pit Box (Only for Pits) */}
+                            {isPit && (
+                                <mesh>
+                                    <boxGeometry args={[1.0, 0.6, 1.0]} />
+                                    <meshBasicMaterial attach="material-0" transparent opacity={0.0} />
+                                    <meshBasicMaterial attach="material-1" transparent opacity={0.0} />
+                                    <meshBasicMaterial attach="material-2" transparent opacity={0.0} />
+                                    <meshBasicMaterial attach="material-3" color="white" />{/* Bottom White Face */}
+                                    <meshBasicMaterial attach="material-4" transparent opacity={0.0} />
+                                    <meshBasicMaterial attach="material-5" transparent opacity={0.0} />
+                                </mesh>
+                            )}
+
+                            {/* 2. Top Frame (Borders) */}
+                            {/* For Pits: sits at +0.3 relative to -0.45 -> -0.15 (just below surface?) */}
+                            {/* For Plates: sits at 0.0 relative to 0.0 -> Surface. */}
+                            <group position={[0, isPit ? 0.3 : 0.025, 0]}>
+                                {/* Top Strip */}
+                                <mesh position={[0, 0, -0.425]}>
+                                    <boxGeometry args={[1, 0.05, 0.15]} />
+                                    <meshBasicMaterial color={h.color} />
+                                </mesh>
+                                {/* Bottom Strip */}
+                                <mesh position={[0, 0, 0.425]}>
+                                    <boxGeometry args={[1, 0.05, 0.15]} />
+                                    <meshBasicMaterial color={h.color} />
+                                </mesh>
+                                {/* Left Strip */}
+                                <mesh position={[-0.425, 0, 0]}>
+                                    <boxGeometry args={[0.15, 0.05, 0.7]} />
+                                    <meshBasicMaterial color={h.color} />
+                                </mesh>
+                                {/* Right Strip */}
+                                <mesh position={[0.425, 0, 0]}>
+                                    <boxGeometry args={[0.15, 0.05, 0.7]} />
+                                    <meshBasicMaterial color={h.color} />
+                                </mesh>
+                            </group>
                         </group>
                     </group>
-                </group>
-            ))}
+                )
+            })}
 
             {/* Walls (legacy) */}
             <instancedMesh ref={wallRef} args={[undefined, undefined, walls.length]} castShadow receiveShadow>
@@ -344,29 +347,7 @@ export const MazeManager: React.FC = () => {
             </instancedMesh>
 
             {/* Plates */}
-            <instancedMesh ref={cubePlateRef} args={[undefined, undefined, items.length]} receiveShadow>
-                <boxGeometry args={[1, 1, 1]} />
-                <meshStandardMaterial />
-            </instancedMesh>
-            <instancedMesh ref={spherePlateRef} args={[undefined, undefined, items.length]} receiveShadow>
-                {/* Use Cylinder for Sphere plate? Or just box? Sphere plate usually round flat. */}
-                {/* Existing was Box? `updateInstances(spherePlateRef... plateSetup)`. `plateSetup` scales 0.8, 0.1, 0.8. */}
-                {/* Let's try Cylinder for circular plates? */}
-                {/* If I change geometry here, it affects existing `spherePlateRef`? */}
-                {/* Currently: Check line 290+. Are they separate? */}
-                {/* I will assume standard structure: separate instancedMesh for each ref. */}
-                <cylinderGeometry args={[0.5, 0.5, 1, 32]} />
-                <meshStandardMaterial />
-            </instancedMesh>
-            <instancedMesh ref={tetraPlateRef} args={[undefined, undefined, items.length]} receiveShadow>
-                {/* Tetra plate? Box is fine for now, or Tri-prism. */}
-                <boxGeometry args={[1, 1, 1]} />
-                <meshStandardMaterial />
-            </instancedMesh>
-            <instancedMesh ref={cylinderPlateRef} args={[undefined, undefined, items.length]} receiveShadow>
-                <cylinderGeometry args={[0.5, 0.5, 1, 32]} />
-                <meshStandardMaterial />
-            </instancedMesh>
+
         </group>
     )
 }
