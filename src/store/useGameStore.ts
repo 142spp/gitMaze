@@ -19,11 +19,11 @@ interface GameState {
     finalTime: number | null;
 
     // Commit Animation State
-    commitAnimation: {
-        isAnimating: boolean;
-        captureUrl: string | null;
-        targetId: string | null;
-    };
+    activeAnimations: Array<{
+        id: string;
+        captureUrl: string;
+        targetId: string;
+    }>;
 
     // Core Engines
     git: GitEngine;
@@ -66,7 +66,7 @@ interface GameState {
 
     // Commit Flow
     requestCommit: (msg: string) => Promise<void>;
-    finishCommitAnimation: () => void;
+    finishCommitAnimation: (id: string) => void;
 
 
     // Internal Actions
@@ -124,11 +124,7 @@ export const useGameStore = create<GameState>((set, get) => {
         isFalling: false,
         deathCount: 0,
         isDead: false,
-        commitAnimation: {
-            isAnimating: false,
-            captureUrl: null,
-            targetId: null
-        },
+        activeAnimations: [],
         terminalHistory: [],
         addLog: (log: string) => {
             // Forward to TerminalStore for legacy compatibility if needed
@@ -239,24 +235,23 @@ export const useGameStore = create<GameState>((set, get) => {
             addLog(`[${commitId.substring(0, 7)}] ${msg}`);
 
             // Trigger animation and update graph
-            set({
-                commitAnimation: {
-                    isAnimating: !!captureUrl,
-                    captureUrl,
-                    targetId: commitId
-                },
-                gitVersion: get().gitVersion + 1
-            });
+            if (captureUrl) {
+                const animationId = Math.random().toString(36).substring(7);
+                set({
+                    activeAnimations: [
+                        ...get().activeAnimations,
+                        { id: animationId, captureUrl, targetId: commitId }
+                    ],
+                    gitVersion: get().gitVersion + 1
+                });
+            } else {
+                set({ gitVersion: get().gitVersion + 1 });
+            }
         },
 
-        finishCommitAnimation: () => {
+        finishCommitAnimation: (id: string) => {
             set({
-                commitAnimation: {
-                    ...get().commitAnimation,
-                    isAnimating: false,
-                    captureUrl: null,
-                    targetId: null
-                }
+                activeAnimations: get().activeAnimations.filter(a => a.id !== id)
             });
         },
 
