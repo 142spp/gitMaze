@@ -107,7 +107,7 @@ const App: React.FC = () => {
 
             {/* Tutorial & Stage Test Buttons (Temporary) */}
             <div className="absolute top-10 right-10 flex flex-col gap-2 z-50">
-                <div className="text-[10px] font-bold text-amber-900/40 mb-1 ml-2">TUTORIALS</div>
+                <div className="text-[16px] text-yellow-400 font-bold text-amber-900/40 mb-1 ml-2">STAGES</div>
                 <div className="flex gap-2 mb-2">
                     {[1, 2, 3, 4, 5].map(lv => (
                         <button
@@ -123,7 +123,7 @@ const App: React.FC = () => {
                     ))}
                 </div>
 
-                <div className="text-[10px] font-bold text-amber-900/40 mb-1 ml-2">MAIN STAGES</div>
+                {/* <div className="text-[10px] font-bold text-amber-900/40 mb-1 ml-2">MAIN STAGES</div>
                 <div className="flex gap-2">
                     {[1, 2, 3, 4].map(lv => (
                         <button
@@ -137,21 +137,21 @@ const App: React.FC = () => {
                             {lv}
                         </button>
                     ))}
-                </div>
+                </div> */}
 
-                <button
+                {/* <button
                     onClick={() => nextStage()}
                     className="mt-4 px-4 py-2 bg-green-800/80 text-white rounded-lg shadow-lg hover:bg-green-700 transition-colors text-xs font-bold uppercase tracking-widest"
                 >
                     Next Stage →
-                </button>
+                </button> */}
 
-                <button
+                {/* <button
                     onClick={() => useGameStore.getState().completeGame()}
                     className="mt-2 px-4 py-2 bg-red-800/80 text-white rounded-lg shadow-lg hover:bg-red-700 transition-colors text-xs font-bold uppercase tracking-widest border border-red-400/30"
                 >
                     Debug: Clear Game 🏆
-                </button>
+                </button> */}
             </div>
             {/* Decorative Floating UI Buttons (Themed) - Only show in Game? Or always? Let's keep them always for now or hide in intro if they distract. 
                 The user didn't ask to remove them, but they might look weird on Intro. Let's hide them on Intro.

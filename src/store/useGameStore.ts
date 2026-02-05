@@ -338,7 +338,7 @@ export const useGameStore = create<GameState>((set, get) => {
             try {
                 // Create new maze - session restore only via explicit "git pull"
                 addLog('Loading spacetime stage 1...');
-                const newMazeData = await api.getNewMaze(1);
+                const newMazeData = await api.getTutorialMaze(1);
 
                 console.error('[CRITICAL] Creating new GitEngine in initialize()');
                 const newGit = new GitEngine(newMazeData);
@@ -392,7 +392,7 @@ export const useGameStore = create<GameState>((set, get) => {
                 addLog(`Stage ${category} ${level} ready.`);
 
                 // Stage 4 Special Setup: Pre-created Branches
-                if (category === 'main' && level === 4) {
+                if (category === 'tutorial' && level === 4) {
                     addLog('[SYSTEM] Initializing Branching Puzzle...');
 
                     const originalState = newGit.getCurrentState();
