@@ -88,9 +88,7 @@ export function Book({ leftContent, rightContent, isClosed = false }: BookProps)
                 height: 'min(94vh, 1000px)',
                 width: 'min(100%, calc(min(94vh, 1000px) * 4 / 3))',
                 margin: '0 auto',
-                transform: translationStyle,
-                opacity: showContent ? 1 : 0,
-                pointerEvents: showContent ? 'auto' : 'none'
+                transform: translationStyle
             }}
         >
             {/* OVERLAYS (Visible during tearing) */}
@@ -176,12 +174,20 @@ export function Book({ leftContent, rightContent, isClosed = false }: BookProps)
                             <div className="absolute left-0 top-0 bottom-0 w-6 bg-gradient-to-r from-black/40 to-transparent" />
                             <div className="absolute inset-0 opacity-40 pointer-events-none" style={{ backgroundImage: `url('https://www.transparenttextures.com/patterns/leather.png')` }} />
                         </div>
-                        <div className="relative z-20 w-full h-full p-4 pl-0">
-                            <div className="w-full h-full overflow-hidden relative bg-[#f7f3e8] rounded-r-[30px] border border-[#5d4037] border-l-0">
-                                {rightContent}
-                                <div className="absolute left-0 top-0 bottom-0 w-12 bg-gradient-to-r from-black/10 to-transparent pointer-events-none z-50" />
+
+                        {isActuallyOpen ? (
+                            <div className="relative z-20 w-full h-full p-4 pl-0">
+                                <div className="w-full h-full overflow-hidden relative bg-[#f7f3e8] rounded-r-[30px] border border-[#5d4037] border-l-0">
+                                    {rightContent}
+                                    <div className="absolute left-0 top-0 bottom-0 w-12 bg-gradient-to-r from-black/10 to-transparent pointer-events-none z-50" />
+                                </div>
                             </div>
-                        </div>
+                        ) : (
+                            /* During Intro: Show content directly on the leather cover */
+                            <div className="relative z-20 w-full h-full">
+                                {rightContent}
+                            </div>
+                        )}
                     </div>
 
                     {/* FLIP OVERLAY */}
