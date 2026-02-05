@@ -4,6 +4,7 @@ import { MazeState } from '../lib/git/types'
 import { api } from '../lib/api'
 import { useTerminalStore } from './useTerminalStore'
 import { CommandHandler } from '../lib/git/CommandHandler'
+import html2canvas from 'html2canvas'
 
 interface GameState {
     // Session
@@ -17,6 +18,13 @@ interface GameState {
     error: string | null;
     finalTime: number | null;
 
+    // Commit Animation State
+    commitAnimation: {
+        isAnimating: boolean;
+        captureUrl: string | null;
+        targetId: string | null;
+    };
+
     // Core Engines
     git: GitEngine;
     currentMaze: MazeState;
@@ -26,10 +34,12 @@ interface GameState {
     visitedCells: Set<string>; // "x,z" format
 
     // UI Effects
-    visualEffect: 'none' | 'preparing-tear' | 'preparing-flip' | 'tearing' | 'flipping';
+    visualEffect: 'none' | 'preparing-tear' | 'preparing-flip' | 'tearing' | 'flipping' | 'moving-right';
     pendingResetAction: (() => void) | null;
     terminalHistory: string[];
     isFalling: boolean;
+    deathCount: number;
+    isDead: boolean;
 
     // Actions
     startGame: () => void;
@@ -53,6 +63,10 @@ interface GameState {
     requestFlip: (action: () => void) => void;
     confirmFlip: () => void;
     finishFlip: () => void;
+
+    // Commit Flow
+    requestCommit: (msg: string) => Promise<void>;
+    finishCommitAnimation: () => void;
 
 
     // Internal Actions
@@ -104,22 +118,33 @@ export const useGameStore = create<GameState>((set, get) => {
         gitVersion: 1,
         currentStage: 1,
         currentCategory: 'tutorial',
-        terminalHistory: ['Welcome to gitMaze.', 'Initializing system...'],
         visualEffect: 'none',
         pendingResetAction: null,
         finalTime: null,
         isFalling: false,
-
-        addLog: (log: string) => set((state) => ({ terminalHistory: [...state.terminalHistory, log] })),
+        deathCount: 0,
+        isDead: false,
+        commitAnimation: {
+            isAnimating: false,
+            captureUrl: null,
+            targetId: null
+        },
+        terminalHistory: [],
+        addLog: (log: string) => {
+            // Forward to TerminalStore for legacy compatibility if needed
+            useTerminalStore.getState().addLog(log);
+        },
 
         resetPlayerPosition: () => {
-            const { currentMaze } = get();
+            const { currentMaze, deathCount } = get();
             set({
                 currentMaze: {
                     ...currentMaze,
                     playerPosition: { x: currentMaze.startPos.x, z: currentMaze.startPos.z }
                 },
-                isFalling: false
+                isFalling: false,
+                deathCount: deathCount + 1,
+                isDead: false  // Revive player
             });
         },
 
@@ -145,39 +170,106 @@ export const useGameStore = create<GameState>((set, get) => {
 
         finishTear: () => set({ visualEffect: 'none' }),
 
-        // Page Flip Logic
+        // Page Flip Logic - Sequenced (Slide right then flip)
         requestFlip: (action) => {
-            set({ visualEffect: 'preparing-flip', pendingResetAction: action });
+            // 1. Move the book to the right
+            set({ visualEffect: 'moving-right' });
+
+            // Trigger action (gameStatus: 'playing') IMMEDIATELY during the slide
+            // so it starts rendering/initializing underneath the cover.
+            setTimeout(() => {
+                action();
+            }, 10);
+
+            // 2. After slide animation (600ms), start flipping
+            setTimeout(() => {
+                set({ visualEffect: 'flipping' });
+
+                // 3. After flip animation (1500ms CSS + 100ms grace), finish
+                setTimeout(() => {
+                    set({ visualEffect: 'none' });
+                }, 1600);
+            }, 600);
         },
 
         confirmFlip: () => {
-            // Only confirm if we are actually preparing for flip
-            if (get().visualEffect !== 'preparing-flip') return;
-
-            const { pendingResetAction } = get();
-            if (pendingResetAction) {
-                pendingResetAction();
-                set({ visualEffect: 'flipping', pendingResetAction: null });
-
-                // Cleanup
-                setTimeout(() => {
-                    set({ visualEffect: 'none' });
-                }, 1600); // Flip duration (1.5s + buffer)
-            }
+            // No longer needed, kept for compatibility
         },
 
         finishFlip: () => set({ visualEffect: 'none' }),
 
+        requestCommit: async (msg: string) => {
+            const { git, currentMaze } = get();
+            const { addLog } = useTerminalStore.getState();
+
+            let captureUrl = null;
+            try {
+                const element = document.getElementById('polaroid-frame');
+                if (element) {
+                    // We keep dynamic import for local scoping if needed, but ensure it's awaited and handled
+                    const h2c = (await import('html2canvas')).default;
+
+                    const capturePromise = h2c(element, {
+                        backgroundColor: null,
+                        scale: 0.5,
+                        logging: false,
+                        useCORS: true,
+                        allowTaint: true,
+                    });
+
+                    // 2s timeout
+                    const timeoutPromise = new Promise<{ timeout: true }>((resolve) =>
+                        setTimeout(() => resolve({ timeout: true }), 2000)
+                    );
+
+                    const result = await Promise.race([capturePromise, timeoutPromise]);
+
+                    if (result && !('timeout' in result)) {
+                        captureUrl = (result as HTMLCanvasElement).toDataURL('image/webp', 0.8);
+                    } else {
+                        console.warn('Commit capture timed out');
+                    }
+                }
+            } catch (err) {
+                console.warn('Commit capture failed:', err);
+            }
+
+            // Execute commit (CRITICAL: Always commit even if capture fails)
+            const commitId = git.commit(msg, currentMaze);
+            addLog(`[${commitId.substring(0, 7)}] ${msg}`);
+
+            // Trigger animation and update graph
+            set({
+                commitAnimation: {
+                    isAnimating: !!captureUrl,
+                    captureUrl,
+                    targetId: commitId
+                },
+                gitVersion: get().gitVersion + 1
+            });
+        },
+
+        finishCommitAnimation: () => {
+            set({
+                commitAnimation: {
+                    ...get().commitAnimation,
+                    isAnimating: false,
+                    captureUrl: null,
+                    targetId: null
+                }
+            });
+        },
+
         startGame: () => {
             get().requestFlip(() => {
                 set({ gameStatus: 'playing' });
-                // Also trigger initialization if needed, but it might be better to do it separately or here
                 get().initialize();
             });
         },
 
         initialize: async () => {
-            const { userId, addLog } = get();
+            const { userId } = get();
+            const { addLog } = useTerminalStore.getState();
             set({ isLoading: true, error: null, startTime: Date.now(), commandCount: 0, gameStatus: 'playing' });
 
             try {
@@ -227,7 +319,8 @@ export const useGameStore = create<GameState>((set, get) => {
         },
 
         loadStage: async (category: string, level: number) => {
-            const { git, addLog } = get();
+            const { git } = get();
+            const { addLog } = useTerminalStore.getState();
             set({ isLoading: true, error: null });
 
             try {
@@ -246,6 +339,7 @@ export const useGameStore = create<GameState>((set, get) => {
                     commandCount: 0,
                     currentStage: level,
                     currentCategory: category as 'tutorial' | 'main',
+                    deathCount: 0,
                     visitedCells: new Set<string>([`${mazeData.startPos.x},${mazeData.startPos.z}`])
                 });
 
@@ -271,7 +365,11 @@ export const useGameStore = create<GameState>((set, get) => {
             }
         },
         movePlayer: (dx: number, dz: number) => {
-            const { currentMaze, completeGame } = get();
+            const { currentMaze, completeGame, isDead, isFalling } = get();
+
+            // Block movement if dead or falling
+            if (isDead || isFalling) return;
+
             const { playerPosition, walls, width, height, items, startPos, grid } = currentMaze;
 
             const targetX = playerPosition.x + dx;
@@ -415,7 +513,10 @@ export const useGameStore = create<GameState>((set, get) => {
                 requestTear,
                 loadTutorial: get().loadTutorial,
                 loadStage: get().loadStage,
-                nextStage: get().nextStage
+                nextStage: get().nextStage,
+                resetPlayerPosition: get().resetPlayerPosition,
+                isDead: get().isDead,
+                requestCommit: get().requestCommit
             });
 
             // Force re-render of components tracking the git engine

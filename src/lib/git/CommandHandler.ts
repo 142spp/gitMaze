@@ -12,6 +12,9 @@ export interface CommandContext {
     loadTutorial?: (level: number) => Promise<void>;
     loadStage?: (category: string, level: number) => Promise<void>;
     nextStage?: () => Promise<void>;
+    resetPlayerPosition?: () => void;
+    isDead?: boolean;
+    requestCommit?: (msg: string) => Promise<void>;
 }
 
 export class CommandHandler {
@@ -82,11 +85,15 @@ export class CommandHandler {
             }
             else if (parts[0] === 'git' && parts[1] === 'commit') {
                 const msgMatch = cmd.match(/"([^"]+)"/);
-                const msg = msgMatch ? msgMatch[1] : (parts.slice(3).join(' ') || 'New commit');
+                const msg = msgMatch ? msgMatch[1] : (parts.slice(2).find(p => !p.startsWith('-')) || 'New commit');
 
-                // Commit current state
-                const commitId = git.commit(msg, currentMaze);
-                addLog(`[${commitId.substring(0, 7)}] ${msg}`);
+                if (context.requestCommit) {
+                    await context.requestCommit(msg);
+                } else {
+                    // Fallback to direct execution
+                    const commitId = git.commit(msg, currentMaze);
+                    addLog(`[${commitId.substring(0, 7)}] ${msg}`);
+                }
             }
             else if (parts[0] === 'git' && parts[1] === 'merge') {
                 const target = parts[2];
@@ -99,6 +106,12 @@ export class CommandHandler {
                 const mode = parts.includes('--soft') ? 'soft' : 'hard';
                 const target = parts.find(p => !p.startsWith('--') && p !== 'git' && p !== 'reset') || 'HEAD';
 
+                // Check if player is dead - revive them
+                const { isDead, resetPlayerPosition } = context;
+                if (isDead && resetPlayerPosition) {
+                    resetPlayerPosition();
+                    addLog('You have been revived at the last checkpoint.');
+                }
                 // Use Tear Effect if available
                 if (requestTear) {
                     requestTear(() => {

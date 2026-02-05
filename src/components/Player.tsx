@@ -46,17 +46,17 @@ export const Player: React.FC = () => {
                 fallingStarted.current = true;
             }, 200);
 
-            // Reset after animation completes
-            const resetTimer = setTimeout(() => {
+            // Mark as dead after animation completes
+            const deathTimer = setTimeout(() => {
                 currentY.current = 0.05;
                 fallVelocity.current = 0;
                 fallingStarted.current = false;
-                resetPlayerPosition();
+                useGameStore.setState({ isDead: true, isFalling: false });
             }, 1400); // 200ms delay + 1200ms fall
 
             return () => {
                 clearTimeout(startFallTimer);
-                clearTimeout(resetTimer);
+                clearTimeout(deathTimer);
             };
         } else {
             currentY.current = 0.05;

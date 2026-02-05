@@ -5,8 +5,10 @@ import { CommitSidebar } from './components/CommitSidebar'
 import { Minimap } from './components/Minimap'
 import { Book } from './components/ui/Book'
 import { IntroCover } from './components/ui/Intro'
+import { DeathScreen } from './components/DeathScreen'
 import { GitBranch } from 'lucide-react';
 import { useGameStore } from './store/useGameStore'
+import { CommitAnimationOverlay } from './components/CommitAnimationOverlay'
 
 
 const App: React.FC = () => {
@@ -59,6 +61,8 @@ const App: React.FC = () => {
             {/* Top: 3D Scene Viewport */}
             <div className="flex-1 relative min-h-0 mb-6 group flex items-center justify-center">
                 <MainScene />
+                {/* Death Screen Overlay (Canvas only) */}
+                <DeathScreen />
             </div>
 
             {/* Bottom: Minimap + Terminal (Side-by-side for 4:3) */}
@@ -155,6 +159,8 @@ const App: React.FC = () => {
                     </button>
                 </div>
             )}
+
+            <CommitAnimationOverlay />
         </div >
     )
 }
