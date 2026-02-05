@@ -27,7 +27,7 @@ export interface Item {
 export interface MazeState {
     width: number;
     height: number;
-    grid: string[][]; // Floor types: "solid", "pit", "void"
+    grid: string[] | string[][]; // Floor types can be rows of strings or array of chars
     minCommands?: number;
     walls: Wall[];
     items: Item[];

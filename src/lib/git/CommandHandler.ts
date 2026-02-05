@@ -104,7 +104,7 @@ export class CommandHandler {
                     requestTear(() => {
                         const newState = git.reset(target, mode, currentMaze);
                         setMaze(newState);
-                        addLog(`Reset to ${target} (${mode})`);
+                        addLog(`Reset to ${target} (${mode}) -> (${newState.playerPosition.x}, ${newState.playerPosition.z})`);
                     });
                 } else {
                     // Fallback to direct execution

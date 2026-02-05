@@ -13,10 +13,35 @@ export class GitEngine {
      * @param initialState 초기 미로의 상태 (벽, 아이템, 시작 위치 등)
      */
     constructor(initialState: MazeState) {
-        // 플레이어 위치가 없는 경우 기본값 설정
+        // 1. Calculate Start Position if missing
+        let startPos = initialState.startPos;
+        if (!startPos && initialState.grid) {
+            // Find 'S' or '*' from grid
+            for (let z = 0; z < initialState.height; z++) {
+                const row = initialState.grid[z];
+                // Check if row is string or array
+                if (typeof row === 'string') {
+                    const x = row.indexOf('S');
+                    if (x !== -1) { startPos = { x, z }; break; }
+                    const x2 = row.indexOf('*');
+                    if (x2 !== -1) { startPos = { x: x2, z }; break; }
+                } else if (Array.isArray(row)) {
+                    // If grid is char[][]
+                    const r = row as string[];
+                    const x = r.indexOf('S');
+                    if (x !== -1) { startPos = { x, z }; break; }
+                    const x2 = r.indexOf('*');
+                    if (x2 !== -1) { startPos = { x: x2, z }; break; }
+                }
+            }
+        }
+        if (!startPos) startPos = { x: 0, z: 0 };
+
+        // 2. Normalize State
         const normalizedState = {
             ...initialState,
-            playerPosition: initialState.playerPosition || { x: 0, z: 0 }
+            startPos: initialState.startPos || startPos,
+            playerPosition: initialState.playerPosition || startPos
         };
 
         const initialCommit: CommitNode = {
