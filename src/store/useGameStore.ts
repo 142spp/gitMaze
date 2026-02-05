@@ -34,12 +34,13 @@ interface GameState {
     visitedCells: Set<string>; // "x,z" format
 
     // UI Effects
-    visualEffect: 'none' | 'preparing-tear' | 'preparing-flip' | 'tearing' | 'flipping' | 'moving-right' | 'page-turning';
+    visualEffect: 'none' | 'preparing-tear' | 'preparing-flip' | 'tearing' | 'flipping' | 'moving-right' | 'preparing-turn' | 'page-turning';
     pendingResetAction: (() => void) | null;
     terminalHistory: string[];
     isFalling: boolean;
     deathCount: number;
     isDead: boolean;
+    isInitialized: boolean;
 
     // Actions
     startGame: () => void;
@@ -74,6 +75,7 @@ interface GameState {
 
     // Internal Actions
     syncToBackend: () => Promise<void>;
+    pullFromBackend: () => Promise<void>;
 }
 
 // ... (getUserId and INITIAL_PLACEHOLDER remain same)
@@ -118,6 +120,7 @@ export const useGameStore = create<GameState>((set, get) => {
         git,
         currentMaze: INITIAL_PLACEHOLDER,
         visitedCells: new Set<string>(['0,0']), // Track visited cells for Fog of War
+        isInitialized: false,
         gitVersion: 1,
         currentStage: 1,
         currentCategory: 'tutorial',
@@ -157,11 +160,12 @@ export const useGameStore = create<GameState>((set, get) => {
 
             const { pendingResetAction } = get();
             if (pendingResetAction) {
-                pendingResetAction();
+                // Start tearing animation
                 set({ visualEffect: 'tearing', pendingResetAction: null });
 
-                // Cleanup after animation
+                // Execute the actual reset action (and graph update) AFTER 1s animation
                 setTimeout(() => {
+                    pendingResetAction();
                     set({ visualEffect: 'none' });
                 }, 1000);
             }
@@ -198,17 +202,23 @@ export const useGameStore = create<GameState>((set, get) => {
         finishFlip: () => set({ visualEffect: 'none' }),
 
         requestPageTurn: (action) => {
-            set({ visualEffect: 'page-turning' });
+            // Phase 1: Expand sidebar to 50%
+            set({ visualEffect: 'preparing-turn' });
 
-            // Execute state change in middle of animation
+            // Phase 2: Start page flip after sidebar expansion
+            setTimeout(() => {
+                set({ visualEffect: 'page-turning' });
+            }, 500);
+
+            // Execute state change in middle of flip
             setTimeout(() => {
                 action();
-            }, 400);
+            }, 900);
 
             // Finish animation
             setTimeout(() => {
                 set({ visualEffect: 'none' });
-            }, 800);
+            }, 1400);
         },
 
         requestCommit: async (msg: string) => {
@@ -280,42 +290,30 @@ export const useGameStore = create<GameState>((set, get) => {
         },
 
         initialize: async () => {
+            // Prevent double initialization (React Strict Mode calls useEffect twice in dev)
+            if (get().isInitialized) {
+                return;
+            }
+
             const { userId } = get();
             const { addLog } = useTerminalStore.getState();
-            set({ isLoading: true, error: null, startTime: Date.now(), commandCount: 0, gameStatus: 'playing' });
+            set({ isLoading: true, error: null, startTime: Date.now(), commandCount: 0, gameStatus: 'playing', isInitialized: true });
 
             try {
-                // 1. 이전 세션 복구 시도
-                const savedGraph = await api.pullDimensions(userId);
+                // Create new maze - session restore only via explicit "git pull"
+                addLog('Loading spacetime stage 1...');
+                const newMazeData = await api.getNewMaze(1);
 
-                if (savedGraph) {
-                    addLog('Restoring previous session...');
-                    const restoredState = git.importGraph(JSON.stringify(savedGraph));
+                console.error('[CRITICAL] Creating new GitEngine in initialize()');
+                const newGit = new GitEngine(newMazeData);
 
-                    set({
-                        currentMaze: restoredState,
-                        isLoading: false,
-                        gitVersion: get().gitVersion + 1
-                    });
-                    addLog('Session restored. Type "help" for commands.');
-                } else {
-                    // 2. 새로운 미로 생성 (스테이지 1)
-                    addLog('Loading spacetime stage 1...');
-                    const newMazeData = await api.getNewMaze(1);
-
-                    const newGit = new GitEngine(newMazeData);
-
-                    set({
-                        git: newGit,
-                        currentMaze: newGit.getCurrentState(),
-                        isLoading: false,
-                        gitVersion: get().gitVersion + 1,
-                        currentStage: 1,
-                        currentCategory: 'main'
-                    });
-
-                    addLog('Ready. Type "help" to start.');
-                }
+                set({
+                    git: newGit,
+                    currentMaze: newGit.getCurrentState(),
+                    isLoading: false,
+                    gitVersion: get().gitVersion + 1,
+                    currentStage: 1,
+                });
 
             } catch (err: any) {
                 console.error("Initialization Failed:", err);
@@ -374,6 +372,31 @@ export const useGameStore = create<GameState>((set, get) => {
                 await api.pushDimensions(userId, graphJson);
             } catch (e) {
                 console.error("Failed to sync state", e);
+            }
+        },
+
+        pullFromBackend: async () => {
+            const { userId, git, addLog } = get();
+            set({ isLoading: true, error: null });
+            try {
+                addLog('Pulling dimensions from server...');
+                const data = await api.pullDimensions(userId);
+                if (data) {
+                    const newState = git.importGraph(JSON.stringify(data));
+                    set({
+                        currentMaze: newState,
+                        gitVersion: get().gitVersion + 1,
+                        isLoading: false
+                    });
+                    addLog('Successfully pulled and restored spacetime dimensions.');
+                } else {
+                    addLog('No saved dimensions found on server.');
+                    set({ isLoading: false });
+                }
+            } catch (e) {
+                console.error("Failed to pull state", e);
+                addLog('Error: Failed to pull dimensions from server.');
+                set({ isLoading: false });
             }
         },
         movePlayer: (dx: number, dz: number) => {
@@ -492,7 +515,7 @@ export const useGameStore = create<GameState>((set, get) => {
 
         completeGame: async () => {
             const { userId, startTime, commandCount } = get();
-            const playTime = (Date.now() - startTime) / 1000; // seconds (precise)
+            const playTime = Math.floor((Date.now() - startTime) / 1000); // seconds (integer)
             set({ gameStatus: 'cleared', isSaving: true, saveError: null, finalTime: playTime });
 
             try {
@@ -508,10 +531,10 @@ export const useGameStore = create<GameState>((set, get) => {
             const { git, syncToBackend, initialize, requestFlip, requestTear } = get();
             const { addLog } = useTerminalStore.getState();
 
-            // Special case for git pull as it needs store's initialize
+            // Special case for git pull
             if (cmd.trim() === 'git pull') {
                 addLog(`> ${cmd}`);
-                await initialize();
+                await get().pullFromBackend();
                 return;
             }
 
@@ -519,7 +542,7 @@ export const useGameStore = create<GameState>((set, get) => {
                 git,
                 currentMaze: get().currentMaze,
                 addLog,
-                setMaze: (maze) => set({ currentMaze: maze }),
+                setMaze: (maze) => set({ currentMaze: maze, gitVersion: get().gitVersion + 1 }),
                 syncToBackend,
                 requestFlip,
                 requestPageTurn: get().requestPageTurn,

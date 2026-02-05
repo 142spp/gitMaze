@@ -18,9 +18,10 @@ export function Book({ leftContent, rightContent, isClosed = false }: BookProps)
     const isSaving = useGameStore(state => state.isSaving);
     const saveError = useGameStore(state => state.saveError);
     const isTearing = visualEffect === 'tearing';
+    const isPreparingTurn = visualEffect === 'preparing-turn';
     const isPageTurning = visualEffect === 'page-turning';
     const isCleared = gameStatus === 'cleared';
-    const isTransitioning = visualEffect === 'moving-right' || visualEffect === 'flipping' || isPageTurning;
+    const isTransitioning = visualEffect === 'moving-right' || visualEffect === 'flipping' || isPreparingTurn || isPageTurning;
 
     const bookRef = useRef<HTMLDivElement>(null);
     const [captureImage, setCaptureImage] = useState<string | null>(null);
@@ -118,73 +119,49 @@ export function Book({ leftContent, rightContent, isClosed = false }: BookProps)
                 </div>
             )}
 
-{/* PAGE TURN OVERLAY (Checkout Effect) */ }
-{
-    isPageTurning && (
-        <div className="absolute inset-0 z-[90] pointer-events-none" style={{ perspective: '2000px' }}>
-            {/* Turning Page (Full width, like opening book) */}
-            <div
-                className="absolute top-0 left-0 w-full h-full animate-page-turn"
-                style={{
-                    transformStyle: 'preserve-3d',
-                    transformOrigin: 'center center'
-                }}
-            >
-                {/* Front of page - Show CommitSidebar filling entire width */}
-                <div className="absolute inset-0 flex" style={{ backfaceVisibility: 'hidden' }}>
-                    {/* Left side: Leather background with sidebar */}
-                    <div className="w-1/2 h-full relative bg-[#5d4037] overflow-hidden rounded-l-[40px]">
-                        <div className="absolute inset-0 opacity-40" style={{ backgroundImage: `url('https://www.transparenttextures.com/patterns/leather.png')` }} />
-                        <div className="relative z-20 w-full h-full p-4 pr-0">
-                            <div className="w-full h-full bg-[#f7f3e8] rounded-l-[30px] border border-[#5d4037] border-r-0 overflow-hidden">
-                                {leftContent}
+            {/* PAGE TURN OVERLAY (Checkout Effect) */}
+            {
+                isPageTurning && (
+                    <div className="absolute inset-0 z-[90] pointer-events-none" style={{ perspective: '2000px' }}>
+                        {/* Turning Page - Only RIGHT page flips */}
+                        <div
+                            className="absolute top-0 left-1/2 w-1/2 h-full animate-page-turn"
+                            style={{
+                                transformStyle: 'preserve-3d',
+                                transformOrigin: '0% 50%'
+                            }}
+                        >
+                            {/* Front of page - Current rightContent */}
+                            <div className="absolute inset-0 bg-[#5d4037] overflow-hidden" style={{ backfaceVisibility: 'hidden' }}>
+                                <div className="absolute inset-0 opacity-40" style={{ backgroundImage: `url('https://www.transparenttextures.com/patterns/leather.png')` }} />
+                                <div className="relative z-20 w-full h-full p-4 pl-0">
+                                    <div className="w-full h-full bg-[#f7f3e8] rounded-r-[30px] border border-[#5d4037] border-l-0 overflow-hidden">
+                                        {rightContent}
+                                        <div className="absolute left-0 top-0 bottom-0 w-12 bg-gradient-to-r from-black/10 to-transparent pointer-events-none z-50" />
+                                    </div>
+                                </div>
                             </div>
-                        </div>
-                    </div>
 
-                    {/* Right side: Continue showing sidebar (extended) */}
-                    <div className="w-1/2 h-full relative bg-[#5d4037] overflow-hidden rounded-r-[40px]">
-                        <div className="absolute inset-0 opacity-40" style={{ backgroundImage: `url('https://www.transparenttextures.com/patterns/leather.png')` }} />
-                        <div className="relative z-20 w-full h-full p-4 pl-0">
-                            <div className="w-full h-full bg-[#f7f3e8] rounded-r-[30px] border border-[#5d4037] border-l-0 overflow-hidden">
-                                {leftContent}
+                            {/* Back of page - Shows CommitSidebar when flipped */}
+                            <div
+                                className="absolute inset-0 bg-[#5d4037] overflow-hidden"
+                                style={{
+                                    transform: 'rotateY(180deg)',
+                                    backfaceVisibility: 'hidden'
+                                }}
+                            >
+                                <div className="absolute inset-0 opacity-40" style={{ backgroundImage: `url('https://www.transparenttextures.com/patterns/leather.png')` }} />
+                                <div className="relative z-20 w-full h-full p-4 pr-0">
+                                    <div className="w-full h-full bg-[#f7f3e8] rounded-l-[30px] border border-[#5d4037] border-r-0 overflow-hidden">
+                                        {leftContent}
+                                        <div className="absolute right-0 top-0 bottom-0 w-12 bg-gradient-to-l from-black/10 to-transparent pointer-events-none" />
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
-                </div>
-
-                {/* Back of page - Show new content (rightContent) */}
-                <div
-                    className="absolute inset-0 flex"
-                    style={{
-                        transform: 'rotateY(180deg)',
-                        backfaceVisibility: 'hidden'
-                    }}
-                >
-                    {/* Left side: Sidebar */}
-                    <div className="w-1/2 h-full relative bg-[#5d4037] overflow-hidden rounded-l-[40px]">
-                        <div className="absolute inset-0 opacity-40" style={{ backgroundImage: `url('https://www.transparenttextures.com/patterns/leather.png')` }} />
-                        <div className="relative z-20 w-full h-full p-4 pr-0">
-                            <div className="w-full h-full bg-[#f7f3e8] rounded-l-[30px] border border-[#5d4037] border-r-0 overflow-hidden">
-                                {leftContent}
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Right side: New content */}
-                    <div className="w-1/2 h-full relative bg-[#5d4037] overflow-hidden rounded-r-[40px]">
-                        <div className="absolute inset-0 opacity-40" style={{ backgroundImage: `url('https://www.transparenttextures.com/patterns/leather.png')` }} />
-                        <div className="relative z-20 w-full h-full p-4 pl-0">
-                            <div className="w-full h-full bg-[#f7f3e8] rounded-r-[30px] border border-[#5d4037] border-l-0 overflow-hidden">
-                                {rightContent}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    )
-}
+                )
+            }
 
             {/* REAL BOOK CONTENT */}
             <div
@@ -198,9 +175,9 @@ export function Book({ leftContent, rightContent, isClosed = false }: BookProps)
                 <div
                     className="h-full relative transition-[width,opacity] duration-700 ease-in-out"
                     style={{
-                        width: (isActuallyOpen && !isOpening) ? '280px' : '50%',
+                        width: (isActuallyOpen && !isOpening && !isPreparingTurn && !isPageTurning) ? '280px' : '50%',
                         opacity: (isActuallyOpen && !isOpening) ? 1 : 0,
-                        pointerEvents: (isActuallyOpen && !isOpening) ? 'auto' : 'none',
+                        pointerEvents: (isActuallyOpen && !isOpening && !isPreparingTurn && !isPageTurning) ? 'auto' : 'none',
                         zIndex: 10,
                         flexShrink: 0
                     }}
@@ -251,7 +228,7 @@ export function Book({ leftContent, rightContent, isClosed = false }: BookProps)
                         <div
                             className={`absolute inset-0 w-full h-full z-50 ${visualEffect === 'flipping' ? 'animate-page-flip' : ''}`}
                             style={{
-                                transformOrigin: 'left center',
+                                transformOrigin: '0% 50%',
                                 transformStyle: 'preserve-3d',
                             }}
                         >

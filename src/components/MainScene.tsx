@@ -57,7 +57,7 @@ export const MainScene: React.FC = () => {
     // 컴포넌트 마운트 시 초기화 로직 실행 (세션 복구 또는 새 미로 생성)
     useEffect(() => {
         initialize();
-    }, [initialize]);
+    }, []); // Only run once on mount
 
     const playerPosition = currentMaze.playerPosition
     const themeColor = '#2563eb'

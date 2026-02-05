@@ -186,6 +186,9 @@ export class GitEngine {
         if (mode === 'soft') {
             // Soft reset: 현재 플레이어의 위치는 유지하고 지형만 바꿈
             newState.playerPosition = { ...currentWorldState.playerPosition };
+        } else if (mode === 'hard') {
+            // Hard reset: Remove unreachable commits (garbage collection)
+            this.collectGarbage();
         }
 
         return newState;
@@ -323,6 +326,39 @@ export class GitEngine {
         }
 
         return currentId;
+    }
+
+    /**
+     * 도달할 수 없는 커밋들을 그래프에서 제거합니다. (Garbage Collection)
+     */
+    private collectGarbage(): void {
+        // Find all reachable commits from branches
+        const reachable = new Set<string>();
+        const toVisit: string[] = [];
+
+        // Start from all branch heads
+        this.graph.branches.forEach(commitId => {
+            toVisit.push(commitId);
+        });
+
+        // BFS to mark all reachable commits
+        while (toVisit.length > 0) {
+            const commitId = toVisit.shift()!;
+            if (reachable.has(commitId)) continue;
+
+            reachable.add(commitId);
+            const commit = this.graph.commits.get(commitId);
+            if (commit) {
+                commit.parents.forEach(parentId => toVisit.push(parentId));
+            }
+        }
+
+        // Remove unreachable commits
+        Array.from(this.graph.commits.keys()).forEach(commitId => {
+            if (!reachable.has(commitId)) {
+                this.graph.commits.delete(commitId);
+            }
+        });
     }
 
     /**

@@ -83,11 +83,12 @@ export const CommitSidebar: React.FC = () => {
     const setMaze = (newState: any) => useGameStore.setState({ currentMaze: newState });
     const addLog = useTerminalStore((state) => state.addLog);
 
-    const graph = git.getGraph();
-    const headCommitId = git.getCurrentCommitId();
     const seenIds = useRef<Set<string>>(new Set());
 
     const { nodes, edges, height, width } = useMemo(() => {
+        // Get fresh graph data on every gitVersion change
+        const graph = git.getGraph();
+        const headCommitId = git.getCurrentCommitId();
         const layout = calculateLayout(graph);
         const currentSeen = new Set<string>();
         let maxDepth = 0;
@@ -147,7 +148,7 @@ export const CommitSidebar: React.FC = () => {
         });
 
         return { nodes: rfNodes, edges: rfEdges, height: maxDepth + 100, width: maxWidth + 150 };
-    }, [graph, headCommitId, Array.from(graph.branches.keys()).join(','), gitVersion]);
+    }, [gitVersion]);
 
     // 동적으로 zoom 계산: 너비가 넓어지면 zoom을 줄여서 모든 노드가 보이도록
     const dynamicZoom = useMemo(() => {

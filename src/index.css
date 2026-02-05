@@ -192,6 +192,6 @@
 
   .animate-page-turn {
     animation: page-turn-curl 0.8s cubic-bezier(0.65, 0.05, 0.36, 1) forwards;
-    transform-origin: right center;
+    transform-origin: left center;
     transform-style: preserve-3d;
   }

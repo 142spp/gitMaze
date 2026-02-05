@@ -73,22 +73,34 @@ export class CommandHandler {
                 // Use Page Turn Effect for Checkout
                 if (requestPageTurn) {
                     requestPageTurn(() => {
-                        const newState = git.checkout(target);
-                        setMaze(newState);
-                        addLog(`Switched to '${target}'`);
+                        try {
+                            const newState = git.checkout(target);
+                            setMaze(newState);
+                            addLog(`Switched to '${target}'`);
+                        } catch (err: any) {
+                            addLog(`error: ${err.message}`);
+                        }
                     });
                 } else if (requestFlip) {
                     // Fallback to flip
                     requestFlip(() => {
-                        const newState = git.checkout(target);
-                        setMaze(newState);
-                        addLog(`Switched to '${target}'`);
+                        try {
+                            const newState = git.checkout(target);
+                            setMaze(newState);
+                            addLog(`Switched to '${target}'`);
+                        } catch (err: any) {
+                            addLog(`error: ${err.message}`);
+                        }
                     });
                 } else {
                     // Fallback to direct execution
-                    const newState = git.checkout(target);
-                    setMaze(newState);
-                    addLog(`Switched to '${target}'`);
+                    try {
+                        const newState = git.checkout(target);
+                        setMaze(newState);
+                        addLog(`Switched to '${target}'`);
+                    } catch (err: any) {
+                        addLog(`error: ${err.message}`);
+                    }
                 }
             }
             else if (parts[0] === 'git' && parts[1] === 'commit') {
@@ -114,24 +126,48 @@ export class CommandHandler {
                 const mode = parts.includes('--soft') ? 'soft' : 'hard';
                 const target = parts.find(p => !p.startsWith('--') && p !== 'git' && p !== 'reset') || 'HEAD';
 
-                // Check if player is dead - revive them
+                // Check if player is dead - revive them after animation
                 const { isDead, resetPlayerPosition } = context;
-                if (isDead && resetPlayerPosition) {
-                    resetPlayerPosition();
-                    addLog('You have been revived at the last checkpoint.');
-                }
                 // Use Tear Effect if available
                 if (requestTear) {
                     requestTear(() => {
-                        const newState = git.reset(target, mode, currentMaze);
-                        setMaze(newState);
-                        addLog(`Reset to ${target} (${mode}) -> (${newState.playerPosition.x}, ${newState.playerPosition.z})`);
+                        try {
+                            const newState = git.reset(target, mode, currentMaze);
+                            setMaze(newState);
+
+                            // Revive player after animation completes
+                            if (isDead && resetPlayerPosition) {
+                                resetPlayerPosition();
+                                addLog('You have been revived at the last checkpoint.');
+                            }
+
+                            addLog(`Reset to ${target} (${mode}) -> (${newState.playerPosition.x}, ${newState.playerPosition.z})`);
+                        } catch (err: any) {
+                            addLog(`error: ${err.message}`);
+                            // Revive player even if reset fails (they're stuck otherwise)
+                            if (isDead && resetPlayerPosition) {
+                                resetPlayerPosition();
+                            }
+                        }
                     });
                 } else {
                     // Fallback to direct execution
-                    const newState = git.reset(target, mode, currentMaze);
-                    setMaze(newState);
-                    addLog(`Reset to ${target} (${mode})`);
+                    try {
+                        const newState = git.reset(target, mode, currentMaze);
+                        setMaze(newState);
+
+                        if (isDead && resetPlayerPosition) {
+                            resetPlayerPosition();
+                            addLog('You have been revived at the last checkpoint.');
+                        }
+
+                        addLog(`Reset to ${target} (${mode})`);
+                    } catch (err: any) {
+                        addLog(`error: ${err.message}`);
+                        if (isDead && resetPlayerPosition) {
+                            resetPlayerPosition();
+                        }
+                    }
                 }
             }
             else if (parts[0] === 'git' && parts[1] === 'push') {
@@ -139,9 +175,7 @@ export class CommandHandler {
                 addLog('Saved to server.');
             }
             else if (parts[0] === 'git' && parts[1] === 'pull') {
-                // Pulling requires a full re-initialization which is usually handled by the store
-                // We'll throw an error or handle it specifically in the store
-                throw new Error('Pull command should be handled by the game logic');
+                // Handled in useGameStore.ts
             }
             else if (parts[0] === 'git' && parts[1] === 'tutorial') {
                 const level = parseInt(parts[2]);

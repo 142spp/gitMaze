@@ -39,14 +39,14 @@ export const Minimap: React.FC = () => {
                 </div>
 
                 <div className="flex-1 bg-amber-900/5 border border-amber-900/10 relative overflow-hidden rounded-sm flex items-center justify-center p-2">
-                    {/* Grid Layout Container */}
+                    {/* Grid Layout Container with 1.2x zoom-out */}
                     <div
                         className="relative"
                         style={{
                             display: 'grid',
                             gridTemplateColumns: `repeat(${width}, 1fr)`,
                             gap: '1px',
-                            width: '100%',
+                            width: '83.33%', // 100% / 1.2 for 1.2x zoom-out effect
                             aspectRatio: `${width}/${height}`
                         }}
                     >
@@ -56,15 +56,20 @@ export const Minimap: React.FC = () => {
 
                             let bgColor = 'transparent'
                             if (isVisited) {
+                                // 방문한 칸: 색칠
                                 if (tileType === 'solid') bgColor = '#d4af37' // Gold/Brown for visited floor
                                 else if (tileType === 'pit') bgColor = '#2c1810' // Dark for pit
                                 else bgColor = 'transparent'
                             } else {
-                                bgColor = 'rgba(44, 24, 16, 0.05)' // Faint dark for unvisited (Fog)
+                                // 미방문 칸: void는 투명, 도달 가능한 칸은 반투명
+                                if (tileType === 'void') {
+                                    bgColor = 'transparent' // 도달할 수 없는 칸
+                                } else if (tileType === 'solid' || tileType === 'pit') {
+                                    bgColor = 'rgba(44, 24, 16, 0.05)' // 도달 가능하지만 미방문 (Fog)
+                                } else {
+                                    bgColor = 'transparent'
+                                }
                             }
-
-                            // Highlight Start Position always? Maybe not, keep fog logic strict
-                            // if (cell.x === currentMaze.startPos.x && cell.z === currentMaze.startPos.z) bgColor = '#3b82f6'
 
                             return (
                                 <div
