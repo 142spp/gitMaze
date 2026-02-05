@@ -8,6 +8,7 @@ import { IntroCover } from './components/ui/Intro'
 import { DeathScreen } from './components/DeathScreen'
 import { GitBranch } from 'lucide-react';
 import { useGameStore } from './store/useGameStore'
+import { CommitAnimationOverlay } from './components/CommitAnimationOverlay'
 
 
 const App: React.FC = () => {
@@ -158,6 +159,8 @@ const App: React.FC = () => {
                     </button>
                 </div>
             )}
+
+            <CommitAnimationOverlay />
         </div >
     )
 }

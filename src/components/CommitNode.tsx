@@ -17,7 +17,10 @@ export const CommitNode = memo(({ data }: CommitNodeProps) => {
     const color = data.themeColor || '#2563eb';
 
     return (
-        <div className="relative flex flex-col items-center group pointer-events-none">
+        <div
+            id={`commit-node-${data.id}`}
+            className="relative flex flex-col items-center group pointer-events-none"
+        >
             {/* Target Handle at the top of the node */}
             <Handle type="target" position={Position.Top} className="!opacity-0 !pointer-events-none" />
 

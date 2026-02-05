@@ -88,7 +88,10 @@ export const MainScene: React.FC = () => {
         <div className="w-full h-full flex items-center justify-center p-1">
             <div className="relative transform rotate-1 hover:rotate-0 transition-transform duration-300 w-full max-w-[680px]">
                 {/* 폴라로이드 스타일 프레임 UI */}
-                <div className="bg-white p-4 pb-16 shadow-[0_10px_30px_rgba(0,0,0,0.15)] rounded-sm border border-gray-100 relative">
+                <div
+                    id="polaroid-frame"
+                    className="bg-white p-4 pb-16 shadow-[0_10px_30px_rgba(0,0,0,0.15)] rounded-sm border border-gray-100 relative"
+                >
 
                     {/* 상단 장식용 핀 */}
                     <div className="absolute -top-3 left-1/2 -translate-x-12 w-4 h-4 rounded-full bg-blue-500 shadow-sm border-2 border-white/50 z-20" />

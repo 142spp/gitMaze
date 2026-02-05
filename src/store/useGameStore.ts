@@ -4,6 +4,7 @@ import { MazeState } from '../lib/git/types'
 import { api } from '../lib/api'
 import { useTerminalStore } from './useTerminalStore'
 import { CommandHandler } from '../lib/git/CommandHandler'
+import html2canvas from 'html2canvas'
 
 interface GameState {
     // Session
@@ -16,6 +17,13 @@ interface GameState {
     saveError?: string | null;
     error: string | null;
     finalTime: number | null;
+
+    // Commit Animation State
+    commitAnimation: {
+        isAnimating: boolean;
+        captureUrl: string | null;
+        targetId: string | null;
+    };
 
     // Core Engines
     git: GitEngine;
@@ -55,6 +63,10 @@ interface GameState {
     requestFlip: (action: () => void) => void;
     confirmFlip: () => void;
     finishFlip: () => void;
+
+    // Commit Flow
+    requestCommit: (msg: string) => Promise<void>;
+    finishCommitAnimation: () => void;
 
 
     // Internal Actions
@@ -106,15 +118,22 @@ export const useGameStore = create<GameState>((set, get) => {
         gitVersion: 1,
         currentStage: 1,
         currentCategory: 'tutorial',
-        terminalHistory: ['Welcome to gitMaze.', 'Initializing system...'],
         visualEffect: 'none',
         pendingResetAction: null,
         finalTime: null,
         isFalling: false,
         deathCount: 0,
         isDead: false,
-
-        addLog: (log: string) => set((state) => ({ terminalHistory: [...state.terminalHistory, log] })),
+        commitAnimation: {
+            isAnimating: false,
+            captureUrl: null,
+            targetId: null
+        },
+        terminalHistory: [],
+        addLog: (log: string) => {
+            // Forward to TerminalStore for legacy compatibility if needed
+            useTerminalStore.getState().addLog(log);
+        },
 
         resetPlayerPosition: () => {
             const { currentMaze, deathCount } = get();
@@ -179,6 +198,68 @@ export const useGameStore = create<GameState>((set, get) => {
 
         finishFlip: () => set({ visualEffect: 'none' }),
 
+        requestCommit: async (msg: string) => {
+            const { git, currentMaze } = get();
+            const { addLog } = useTerminalStore.getState();
+
+            let captureUrl = null;
+            try {
+                const element = document.getElementById('polaroid-frame');
+                if (element) {
+                    // We keep dynamic import for local scoping if needed, but ensure it's awaited and handled
+                    const h2c = (await import('html2canvas')).default;
+
+                    const capturePromise = h2c(element, {
+                        backgroundColor: null,
+                        scale: 0.5,
+                        logging: false,
+                        useCORS: true,
+                        allowTaint: true,
+                    });
+
+                    // 2s timeout
+                    const timeoutPromise = new Promise<{ timeout: true }>((resolve) =>
+                        setTimeout(() => resolve({ timeout: true }), 2000)
+                    );
+
+                    const result = await Promise.race([capturePromise, timeoutPromise]);
+
+                    if (result && !('timeout' in result)) {
+                        captureUrl = (result as HTMLCanvasElement).toDataURL('image/webp', 0.8);
+                    } else {
+                        console.warn('Commit capture timed out');
+                    }
+                }
+            } catch (err) {
+                console.warn('Commit capture failed:', err);
+            }
+
+            // Execute commit (CRITICAL: Always commit even if capture fails)
+            const commitId = git.commit(msg, currentMaze);
+            addLog(`[${commitId.substring(0, 7)}] ${msg}`);
+
+            // Trigger animation and update graph
+            set({
+                commitAnimation: {
+                    isAnimating: !!captureUrl,
+                    captureUrl,
+                    targetId: commitId
+                },
+                gitVersion: get().gitVersion + 1
+            });
+        },
+
+        finishCommitAnimation: () => {
+            set({
+                commitAnimation: {
+                    ...get().commitAnimation,
+                    isAnimating: false,
+                    captureUrl: null,
+                    targetId: null
+                }
+            });
+        },
+
         startGame: () => {
             get().requestFlip(() => {
                 set({ gameStatus: 'playing' });
@@ -187,7 +268,8 @@ export const useGameStore = create<GameState>((set, get) => {
         },
 
         initialize: async () => {
-            const { userId, addLog } = get();
+            const { userId } = get();
+            const { addLog } = useTerminalStore.getState();
             set({ isLoading: true, error: null, startTime: Date.now(), commandCount: 0, gameStatus: 'playing' });
 
             try {
@@ -237,7 +319,8 @@ export const useGameStore = create<GameState>((set, get) => {
         },
 
         loadStage: async (category: string, level: number) => {
-            const { git, addLog } = get();
+            const { git } = get();
+            const { addLog } = useTerminalStore.getState();
             set({ isLoading: true, error: null });
 
             try {
@@ -432,7 +515,8 @@ export const useGameStore = create<GameState>((set, get) => {
                 loadStage: get().loadStage,
                 nextStage: get().nextStage,
                 resetPlayerPosition: get().resetPlayerPosition,
-                isDead: get().isDead
+                isDead: get().isDead,
+                requestCommit: get().requestCommit
             });
 
             // Force re-render of components tracking the git engine
