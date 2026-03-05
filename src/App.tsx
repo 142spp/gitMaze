@@ -95,15 +95,7 @@ const App: React.FC = () => {
                 rightContent={isIntro ? <IntroCover /> : GameRight}
             />
 
-            {/* Decorative Floating UI Buttons (Themed) */}
-            <div className="absolute bottom-10 left-10 flex gap-4 z-50">
-                <button className="w-12 h-12 bg-[#fdfbf7] rounded-full shadow-xl flex items-center justify-center text-amber-700 hover:scale-110 active:scale-95 transition-all border border-amber-100/50">
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="5" /><path d="M12 1v2" /><path d="M12 21v2" /><path d="M4.22 4.22l1.42 1.42" /><path d="M18.36 18.36l1.42 1.42" /><path d="M1 12h2" /><path d="M21 12h2" /><path d="M4.22 19.78l1.42-1.42" /><path d="M18.36 5.64l1.42-1.42" /></svg>
-                </button>
-                <button className="w-12 h-12 bg-[#fdfbf7] rounded-full shadow-xl flex items-center justify-center text-amber-700/60 hover:scale-110 active:scale-95 transition-all border border-amber-100/50">
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" /></svg>
-                </button>
-            </div>
+
 
             {/* Tutorial & Stage Test Buttons (Temporary) */}
             <div className="absolute top-10 right-10 flex flex-col gap-2 z-50">
@@ -153,19 +145,7 @@ const App: React.FC = () => {
                     Debug: Clear Game 🏆
                 </button> */}
             </div>
-            {/* Decorative Floating UI Buttons (Themed) - Only show in Game? Or always? Let's keep them always for now or hide in intro if they distract. 
-                The user didn't ask to remove them, but they might look weird on Intro. Let's hide them on Intro.
-            */}
-            {!isIntro && (
-                <div className="absolute bottom-10 left-10 flex gap-4 z-50">
-                    <button className="w-12 h-12 bg-[#fdfbf7] rounded-full shadow-xl flex items-center justify-center text-amber-700 hover:scale-110 active:scale-95 transition-all border border-amber-100/50">
-                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="5" /><path d="M12 1v2" /><path d="M12 21v2" /><path d="M4.22 4.22l1.42 1.42" /><path d="M18.36 18.36l1.42 1.42" /><path d="M1 12h2" /><path d="M21 12h2" /><path d="M4.22 19.78l1.42-1.42" /><path d="M18.36 5.64l1.42-1.42" /></svg>
-                    </button>
-                    <button className="w-12 h-12 bg-[#fdfbf7] rounded-full shadow-xl flex items-center justify-center text-amber-700/60 hover:scale-110 active:scale-95 transition-all border border-amber-100/50">
-                        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" /></svg>
-                    </button>
-                </div>
-            )}
+
 
             <CommitAnimationOverlay />
         </div >

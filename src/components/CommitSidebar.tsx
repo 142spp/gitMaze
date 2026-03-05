@@ -147,7 +147,7 @@ export const CommitSidebar: React.FC = () => {
             });
         });
 
-        return { nodes: rfNodes, edges: rfEdges, height: maxDepth + 100, width: maxWidth + 150 };
+        return { nodes: rfNodes, edges: rfEdges, height: maxDepth + 200, width: maxWidth + 150 };
     }, [gitVersion]);
 
     // 동적으로 zoom 계산: 너비가 넓어지면 zoom을 줄여서 모든 노드가 보이도록

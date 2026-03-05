@@ -187,7 +187,7 @@ export const useGameStore = create<GameState>((set, get) => {
             // Strict Rule for Stage 4: Must have merged (Only 1 branch left)
             const { currentCategory, currentStage } = get();
             if (currentCategory === 'main' && currentStage === 4) {
-                // Check if 'resources' branch is gone (merged)
+                // Check if 'res' branch is gone (merged)
                 if (git.getBranches().length > 1) return;
             }
 
@@ -397,13 +397,13 @@ export const useGameStore = create<GameState>((set, get) => {
 
                     const originalState = newGit.getCurrentState();
 
-                    // 1. Setup 'resources' branch (Remove the Orange Block)
-                    newGit.branch('resources');
-                    newGit.checkout('resources');
+                    // 1. Setup 'res' branch (Remove the Orange Block)
+                    newGit.branch('res');
+                    newGit.checkout('res');
 
                     const resItems = originalState.items.filter(it => !(it.x === 2 && it.z === 4));
                     const resState = { ...originalState, items: resItems };
-                    newGit.commit('Resources: Blocks (No Orange)', resState);
+                    newGit.commit('res: Blocks (No Orange)', resState);
 
                     // 2. Setup 'main' branch (Only Orange Block + Pits)
                     newGit.checkout('main');
@@ -442,7 +442,7 @@ export const useGameStore = create<GameState>((set, get) => {
                     });
 
                     addLog('Scenario Loaded: You are on "main" with Pits.');
-                    addLog('Hint: A "resources" branch exists with supplies.');
+                    addLog('Hint: A "res" branch exists with supplies.');
                 }
             } catch (err) {
                 console.error("Stage load failed:", err);

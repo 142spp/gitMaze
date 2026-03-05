@@ -327,6 +327,12 @@ export function Book({ leftContent, rightContent, isClosed = false }: BookProps)
                                 </div>
                                 <div className="mt-8 text-sm opacity-60 italic text-[#e5dec9]">"커밋을 남긴다는 것은, 미래의 나를 위한 기록이다."</div>
 
+                                <button
+                                    onClick={() => nextStage()}
+                                    className="mt-10 px-10 py-4 bg-[#d4af37] text-[#5d4037] rounded-full font-black text-xl tracking-[0.3em] shadow-[0_10px_30px_rgba(212,175,55,0.3)] hover:scale-105 active:scale-95 transition-all uppercase hover:bg-[#FFD700]"
+                                >
+                                    Next Stage →
+                                </button>
                             </div>
                         </div>
                     )}
